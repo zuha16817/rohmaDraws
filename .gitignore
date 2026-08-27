@@ -1,0 +1,43 @@
+﻿# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production Build
+dist/
+dist-ssr/
+*.local
+
+# Environment & Secrets (NEVER COMMIT)
+.env
+.env.local
+.env.*.local
+api/config/database.local.php
+api/config/credentials.php
+
+# Dynamic Uploads & High-Res Customer Downloads
+api/uploads/*
+!api/uploads/.gitkeep
+api/secure_downloads/*
+!api/secure_downloads/.gitkeep
+!api/secure_downloads/.htaccess
+
+# Logs & Debugging
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+api/webhook_log.txt
+
+# Editor & OS files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

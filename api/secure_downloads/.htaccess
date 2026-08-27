@@ -1,0 +1,5 @@
+# Protect High-Resolution Master Digital Artwork Downloads from Direct Web Access
+# Only backend PHP scripts (e.g. MailerService and webhook.php) can access these files
+
+Order Deny,Allow
+Deny from all
