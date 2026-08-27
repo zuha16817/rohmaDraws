@@ -1,27 +1,27 @@
 ﻿# Rohma Draws Studio (rohmadraws.com)
 
-Official e-commerce portfolio and fine art acquisition platform for contemporary artist **Rohma Draws** ([rohmadraws.com](https://rohmadraws.com)).
+Official e-commerce portfolio and fine art acquisition platform for a digital artist ([rohmadraws.com](https://rohmadraws.com)).
 
 Built with a high-performance modern tech stack featuring responsive design, dynamic inventory management, instant archival digital fulfillment, commission bookings, and secure international Stripe payments.
 
 ---
 
-## ✨ Features
+## Features
 
-- **🎨 Immersive Fine Art Gallery**: High-resolution showcase of original works, limited edition prints, and digital master downloads.
-- **💳 Multi-Currency & Stripe Live Checkout**: Seamless global checkout supporting Cards, Apple Pay, Google Pay, and localized bank rails.
-- **📦 Smart Order Routing**:
+- **Immersive Fine Art Gallery**: High-resolution showcase of original works, limited edition prints, and digital master downloads.
+- **Multi-Currency & Stripe Live Checkout**: Seamless global checkout supporting Cards, Apple Pay, Google Pay, and localized bank rails.
+- **Smart Order Routing**:
   - **Physical Originals & Prints**: Dedicated studio preparation manifest and courier tracking workflow.
   - **Digital Downloads**: Instant automated delivery with high-resolution master file proxy and email delivery.
-- **🛠️ Artist Admin Dashboard (`/admin`)**:
+- **Artist Admin Dashboard (`/admin`)**:
   - Real-time inventory control and 1-tap stock/availability toggling.
   - New artwork publishing with image upload and pricing controls.
   - Commission inquiry workflow management.
-- **✉️ Automated Studio Notifications**: Custom email service for customer receipts and artist order alerts via `studio@rohmadraws.com`.
+- **Automated Studio Notifications**: Custom email service for customer receipts and artist order alerts via `studio@rohmadraws.com`.
 
 ---
 
-## 🏗️ Architecture & Tech Stack
+## Architecture & Tech Stack
 
 - **Frontend**: React 18, TypeScript, Tailwind CSS, Lucide Icons, Vite
 - **Backend API**: PHP 8.2 (RESTful Architecture, PDO MySQL)
@@ -31,7 +31,7 @@ Built with a high-performance modern tech stack featuring responsive design, dyn
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Clone the Repository
 ```bash
@@ -78,10 +78,10 @@ npm run build
 
 ---
 
-## 🔒 Security & Privacy Notice
+## Security & Privacy Notice
 All production API keys, live payment tokens, artist credentials, and database passwords are kept strictly in gitignored environment configuration files.
 
 ---
 
-## 📄 License
+## License
 © 2026 Rohma Draws Studio. All artwork, imagery, and rights reserved.
