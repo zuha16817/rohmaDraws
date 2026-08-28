@@ -15,37 +15,37 @@ class ProductController {
         }
 
         // If it's a Base64 data URL from phone or desktop upload
-        if (preg_match('/^data:image\/(\w+);base64,(.+)$/s', $imageUrl, $matches)) {
+        if (preg_match('/^data:image\/([a-zA-Z0-9\+\-\.]+);(?:[^;]+;)*base64,(.+)$/s', $imageUrl, $matches)) {
             $ext = strtolower($matches[1]);
             if ($ext === 'jpeg') $ext = 'jpg';
             if (!in_array($ext, ['jpg', 'png', 'webp', 'gif'])) {
                 $ext = 'jpg';
             }
 
-            $decoded = base64_decode($matches[2]);
+            $decoded = base64_decode(str_replace(' ', '+', $matches[2]));
             if ($decoded !== false && strlen($decoded) > 0) {
-                $dirs = [
-                    __DIR__ . '/../../uploads/',
-                    __DIR__ . '/../../images/uploads/',
-                    __DIR__ . '/../uploads/'
-                ];
+                $docRoot = !empty($_SERVER['DOCUMENT_ROOT']) ? rtrim($_SERVER['DOCUMENT_ROOT'], '/') : realpath(__DIR__ . '/../../');
+                
+                $uploadDir = $docRoot . '/uploads/';
+                if (!is_dir($uploadDir)) {
+                    @mkdir($uploadDir, 0777, true);
+                }
 
                 $filename = 'art_' . time() . '_' . rand(1000, 9999) . '.' . $ext;
+                $filepath = $uploadDir . $filename;
 
-                foreach ($dirs as $dir) {
-                    if (!is_dir($dir)) {
-                        @mkdir($dir, 0777, true);
-                    }
-                    $filepath = $dir . $filename;
-                    if (@file_put_contents($filepath, $decoded) !== false) {
-                        if (strpos($dir, 'images/uploads') !== false) {
-                            return '/images/uploads/' . $filename;
-                        } elseif (strpos($dir, 'api/uploads') !== false) {
-                            return '/api/uploads/' . $filename;
-                        } else {
-                            return '/uploads/' . $filename;
-                        }
-                    }
+                if (@file_put_contents($filepath, $decoded) !== false) {
+                    return '/uploads/' . $filename;
+                }
+
+                // Fallback to api/uploads/
+                $apiUploadDir = $docRoot . '/api/uploads/';
+                if (!is_dir($apiUploadDir)) {
+                    @mkdir($apiUploadDir, 0777, true);
+                }
+                $apiFilepath = $apiUploadDir . $filename;
+                if (@file_put_contents($apiFilepath, $decoded) !== false) {
+                    return '/api/uploads/' . $filename;
                 }
             }
         }
@@ -53,20 +53,20 @@ class ProductController {
         return $imageUrl;
     }
 
-    private function processSecondaryImages($secondaryImages): ?string {
+    private function processSecondaryImages($secondaryImages): string {
         if (empty($secondaryImages)) {
-            return null;
+            return json_encode([]);
         }
         if (is_string($secondaryImages)) {
             $decoded = json_decode($secondaryImages, true);
             if (is_array($decoded)) {
                 $secondaryImages = $decoded;
             } else {
-                return null;
+                return json_encode([]);
             }
         }
         if (!is_array($secondaryImages)) {
-            return null;
+            return json_encode([]);
         }
 
         $processed = [];
@@ -79,7 +79,7 @@ class ProductController {
             }
         }
 
-        return !empty($processed) ? json_encode(array_values($processed)) : null;
+        return json_encode(array_values($processed));
     }
 
     public function getProducts(?string $type = null): array {
