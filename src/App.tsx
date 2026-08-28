@@ -290,25 +290,22 @@ export const AppContent: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleUpdateProduct = (updated: Product) => {
+  const handleUpdateProduct = async (updated: Product) => {
     setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-    updateProduct(updated.id, updated).then(() => {
-      loadProducts();
-    });
+    await updateProduct(updated.id, updated);
+    await loadProducts();
   };
 
-  const handleDeleteProduct = (productId: number) => {
+  const handleDeleteProduct = async (productId: number) => {
     setProducts((prev) => prev.filter((p) => p.id !== productId));
-    deleteProduct(productId).then(() => {
-      loadProducts();
-    });
+    await deleteProduct(productId);
+    await loadProducts();
   };
 
-  const handleAddProduct = (newProd: Product) => {
+  const handleAddProduct = async (newProd: Product) => {
     setProducts((prev) => [newProd, ...prev]);
-    createProduct(newProd).then(() => {
-      loadProducts();
-    });
+    await createProduct(newProd);
+    await loadProducts();
   };
 
   const handleUpdateCommissionStatus = (id: number, status: string) => {

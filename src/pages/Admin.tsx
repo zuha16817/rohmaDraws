@@ -55,6 +55,8 @@ export const Admin: React.FC<AdminProps> = ({
   const [newSecondaryImages, setNewSecondaryImages] = useState<string[]>([]);
   const [isCompressingNew, setIsCompressingNew] = useState(false);
   
+  const [isSavingNew, setIsSavingNew] = useState(false);
+  
   // Format Edition Controls (New Product)
   const [newAllowOriginal, setNewAllowOriginal] = useState(true);
   const [newAllowPrint, setNewAllowPrint] = useState(true);
@@ -75,6 +77,7 @@ export const Admin: React.FC<AdminProps> = ({
   const [editSecondaryImages, setEditSecondaryImages] = useState<string[]>([]);
   const [editBadge, setEditBadge] = useState<"AVAILABLE" | "SOLD" | "LIMITED EDITION" | "INSTANT DOWNLOAD">('AVAILABLE');
   const [isCompressingEdit, setIsCompressingEdit] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   
   // Format Edition Controls (Edit Product)
   const [editAllowOriginal, setEditAllowOriginal] = useState(true);
@@ -228,7 +231,7 @@ export const Admin: React.FC<AdminProps> = ({
     });
   };
 
-  const handleCreateProduct = (e: React.FormEvent) => {
+  const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle) return;
 
@@ -253,11 +256,20 @@ export const Admin: React.FC<AdminProps> = ({
       digital_price: parseFloat(newDigitalPrice) || (newType === 'digital' ? mainPrice : 15)
     };
 
-    onAddProduct(newProd);
-    setShowAddModal(false);
-    setNewTitle('');
-    setNewImagePreview('');
-    setNewSecondaryImages([]);
+    setIsSavingNew(true);
+    try {
+      if (onAddProduct) {
+        await onAddProduct(newProd);
+      }
+      setShowAddModal(false);
+      setNewTitle('');
+      setNewImagePreview('');
+      setNewSecondaryImages([]);
+    } catch (err) {
+      console.error('Error creating artwork:', err);
+    } finally {
+      setIsSavingNew(false);
+    }
   };
 
   const handleOpenEditModal = (p: Product) => {
@@ -281,7 +293,7 @@ export const Admin: React.FC<AdminProps> = ({
     setEditDigitalPrice((p.digital_price || (p.type === 'digital' ? p.price : 15)).toString());
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct || !onUpdateProduct) return;
 
@@ -321,8 +333,15 @@ export const Admin: React.FC<AdminProps> = ({
       digital_price: parseFloat(editDigitalPrice) || (editType === 'digital' ? mainPrice : 15)
     };
 
-    onUpdateProduct(updatedProd);
-    setEditingProduct(null);
+    setIsSavingEdit(true);
+    try {
+      await onUpdateProduct(updatedProd);
+      setEditingProduct(null);
+    } catch (err) {
+      console.error('Error updating artwork:', err);
+    } finally {
+      setIsSavingEdit(false);
+    }
   };
 
   const handleConfirmDelete = () => {
@@ -1459,10 +1478,17 @@ export const Admin: React.FC<AdminProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={isCompressingEdit}
-                  className="w-1/2 py-3 bg-amaranth text-chalk rounded-xl uppercase tracking-wider font-bold hover:bg-thulian transition-colors shadow-xs cursor-pointer"
+                  disabled={isCompressingEdit || isSavingEdit}
+                  className="w-1/2 py-3 bg-amaranth text-chalk rounded-xl uppercase tracking-wider font-bold hover:bg-thulian transition-colors shadow-xs cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-60"
                 >
-                  Save Changes
+                  {isSavingEdit ? (
+                    <>
+                      <div className="w-4 h-4 rounded-full border-2 border-chalk border-t-transparent animate-spin" />
+                      <span>Saving Artwork...</span>
+                    </>
+                  ) : (
+                    <span>Save Changes</span>
+                  )}
                 </button>
               </div>
             </form>
@@ -1766,10 +1792,17 @@ export const Admin: React.FC<AdminProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={isCompressingNew}
-                  className="w-1/2 py-3 bg-amaranth text-chalk rounded-xl uppercase tracking-wider font-bold hover:bg-thulian transition-colors shadow-xs cursor-pointer"
+                  disabled={isCompressingNew || isSavingNew}
+                  className="w-1/2 py-3 bg-amaranth text-chalk rounded-xl uppercase tracking-wider font-bold hover:bg-thulian transition-colors shadow-xs cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-60"
                 >
-                  Publish Artwork
+                  {isSavingNew ? (
+                    <>
+                      <div className="w-4 h-4 rounded-full border-2 border-chalk border-t-transparent animate-spin" />
+                      <span>Publishing...</span>
+                    </>
+                  ) : (
+                    <span>Publish Artwork</span>
+                  )}
                 </button>
               </div>
             </form>
