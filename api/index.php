@@ -40,11 +40,21 @@ try {
                 echo json_encode(['status' => 'success', 'data' => $data]);
             }
         } elseif ($method === 'POST') {
-            $newId = $controller->createProduct($input ?? []);
-            if ($newId) {
-                echo json_encode(['status' => 'success', 'message' => 'Artwork published to database.', 'id' => $newId]);
+            $action = $_GET['action'] ?? ($input['action'] ?? null);
+            if ($action === 'update') {
+                $id = isset($_GET['id']) ? intval($_GET['id']) : ($input['id'] ?? null);
+                if ($id && $controller->updateProduct($id, $input ?? [])) {
+                    echo json_encode(['status' => 'success', 'message' => 'Artwork updated in database.']);
+                } else {
+                    echo json_encode(['status' => 'error', 'message' => 'Failed to update artwork in database.']);
+                }
             } else {
-                echo json_encode(['status' => 'error', 'message' => 'Failed to publish artwork to database.']);
+                $newId = $controller->createProduct($input ?? []);
+                if ($newId) {
+                    echo json_encode(['status' => 'success', 'message' => 'Artwork published to database.', 'id' => $newId]);
+                } else {
+                    echo json_encode(['status' => 'error', 'message' => 'Failed to publish artwork to database.']);
+                }
             }
         } elseif ($method === 'PUT') {
             $id = isset($_GET['id']) ? intval($_GET['id']) : ($input['id'] ?? null);

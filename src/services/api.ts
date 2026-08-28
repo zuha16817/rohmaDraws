@@ -56,16 +56,16 @@ export const createProduct = async (data: Partial<Product>) => {
 
 export const updateProduct = async (id: number, data: Partial<Product>) => {
   try {
-    const res = await fetch(`${API_BASE}/products?id=${id}`, {
-      method: 'PUT',
+    const res = await fetch(`${API_BASE}/products?action=update&id=${id}`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
     if (res.ok) {
       return await res.json();
     }
-  } catch {
-    // Fallback
+  } catch (e) {
+    console.error('Error updating product:', e);
   }
   return { status: 'success', message: 'Artwork updated successfully.' };
 };
