@@ -53,6 +53,35 @@ class ProductController {
         return $imageUrl;
     }
 
+    private function processSecondaryImages($secondaryImages): ?string {
+        if (empty($secondaryImages)) {
+            return null;
+        }
+        if (is_string($secondaryImages)) {
+            $decoded = json_decode($secondaryImages, true);
+            if (is_array($decoded)) {
+                $secondaryImages = $decoded;
+            } else {
+                return null;
+            }
+        }
+        if (!is_array($secondaryImages)) {
+            return null;
+        }
+
+        $processed = [];
+        foreach ($secondaryImages as $img) {
+            if (!empty($img) && is_string($img)) {
+                $url = $this->processImageUrl($img);
+                if (!empty($url)) {
+                    $processed[] = $url;
+                }
+            }
+        }
+
+        return !empty($processed) ? json_encode(array_values($processed)) : null;
+    }
+
     public function getProducts(?string $type = null): array {
         if (!$this->db) {
             return $this->getMockProducts($type);
@@ -79,6 +108,22 @@ class ProductController {
                 $p['allow_digital'] = isset($p['allow_digital']) ? (bool)$p['allow_digital'] : true;
                 $p['print_price'] = isset($p['print_price']) ? (float)$p['print_price'] : round($p['price'] * 0.25);
                 $p['digital_price'] = isset($p['digital_price']) ? (float)$p['digital_price'] : 15.0;
+
+                // Decode secondary images
+                $sec = $p['secondary_images'] ?? null;
+                if (!empty($sec)) {
+                    if (is_string($sec)) {
+                        $decoded = json_decode($sec, true);
+                        $p['secondary_images'] = is_array($decoded) ? $decoded : [];
+                    } elseif (is_array($sec)) {
+                        $p['secondary_images'] = $sec;
+                    } else {
+                        $p['secondary_images'] = [];
+                    }
+                } else {
+                    $p['secondary_images'] = [];
+                }
+
                 return $p;
             }, $products);
 
@@ -111,6 +156,21 @@ class ProductController {
                 $product['allow_digital'] = isset($product['allow_digital']) ? (bool)$product['allow_digital'] : true;
                 $product['print_price'] = isset($product['print_price']) ? (float)$product['print_price'] : round($product['price'] * 0.25);
                 $product['digital_price'] = isset($product['digital_price']) ? (float)$product['digital_price'] : 15.0;
+
+                // Decode secondary images
+                $sec = $product['secondary_images'] ?? null;
+                if (!empty($sec)) {
+                    if (is_string($sec)) {
+                        $decoded = json_decode($sec, true);
+                        $product['secondary_images'] = is_array($decoded) ? $decoded : [];
+                    } elseif (is_array($sec)) {
+                        $product['secondary_images'] = $sec;
+                    } else {
+                        $product['secondary_images'] = [];
+                    }
+                } else {
+                    $product['secondary_images'] = [];
+                }
             }
             return $product ?: null;
         } catch (PDOException $e) {
@@ -124,14 +184,15 @@ class ProductController {
         }
 
         $processedImageUrl = $this->processImageUrl($data['image_url'] ?? null);
+        $processedSecondary = $this->processSecondaryImages($data['secondary_images'] ?? null);
 
         try {
             $stmt = $this->db->prepare("INSERT INTO products (
                 title, description, price, weight, dimensions, type, stock_quantity, 
-                image_url, allow_original, allow_print, allow_digital, print_price, digital_price
+                image_url, secondary_images, allow_original, allow_print, allow_digital, print_price, digital_price
             ) VALUES (
                 :title, :description, :price, :weight, :dimensions, :type, :stock_quantity, 
-                :image_url, :allow_original, :allow_print, :allow_digital, :print_price, :digital_price
+                :image_url, :secondary_images, :allow_original, :allow_print, :allow_digital, :print_price, :digital_price
             )");
 
             $success = $stmt->execute([
@@ -143,6 +204,7 @@ class ProductController {
                 'type' => $data['type'] ?? 'original',
                 'stock_quantity' => $data['stock_quantity'] ?? 1,
                 'image_url' => $processedImageUrl,
+                'secondary_images' => $processedSecondary,
                 'allow_original' => isset($data['allow_original']) ? ($data['allow_original'] ? 1 : 0) : 1,
                 'allow_print' => isset($data['allow_print']) ? ($data['allow_print'] ? 1 : 0) : 1,
                 'allow_digital' => isset($data['allow_digital']) ? ($data['allow_digital'] ? 1 : 0) : 1,
@@ -163,6 +225,7 @@ class ProductController {
         }
 
         $processedImageUrl = $this->processImageUrl($data['image_url'] ?? null);
+        $processedSecondary = $this->processSecondaryImages($data['secondary_images'] ?? null);
 
         try {
             $stmt = $this->db->prepare("UPDATE products SET 
@@ -174,6 +237,7 @@ class ProductController {
                 description = :description, 
                 stock_quantity = :stock_quantity, 
                 image_url = :image_url,
+                secondary_images = :secondary_images,
                 allow_original = :allow_original,
                 allow_print = :allow_print,
                 allow_digital = :allow_digital,
@@ -190,6 +254,7 @@ class ProductController {
                 'description' => $data['description'] ?? '',
                 'stock_quantity' => isset($data['stock_quantity']) ? intval($data['stock_quantity']) : 1,
                 'image_url' => $processedImageUrl,
+                'secondary_images' => $processedSecondary,
                 'allow_original' => isset($data['allow_original']) ? ($data['allow_original'] ? 1 : 0) : 1,
                 'allow_print' => isset($data['allow_print']) ? ($data['allow_print'] ? 1 : 0) : 1,
                 'allow_digital' => isset($data['allow_digital']) ? ($data['allow_digital'] ? 1 : 0) : 1,

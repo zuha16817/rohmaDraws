@@ -52,6 +52,7 @@ export const Admin: React.FC<AdminProps> = ({
   const [newDesc, setNewDesc] = useState('');
   const [newDims, setNewDims] = useState('100cm x 80cm');
   const [newImagePreview, setNewImagePreview] = useState<string>('');
+  const [newSecondaryImages, setNewSecondaryImages] = useState<string[]>([]);
   const [isCompressingNew, setIsCompressingNew] = useState(false);
   
   // Format Edition Controls (New Product)
@@ -71,6 +72,7 @@ export const Admin: React.FC<AdminProps> = ({
   const [editDims, setEditDims] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editImageUrl, setEditImageUrl] = useState('');
+  const [editSecondaryImages, setEditSecondaryImages] = useState<string[]>([]);
   const [editBadge, setEditBadge] = useState<"AVAILABLE" | "SOLD" | "LIMITED EDITION" | "INSTANT DOWNLOAD">('AVAILABLE');
   const [isCompressingEdit, setIsCompressingEdit] = useState(false);
   
@@ -112,15 +114,28 @@ export const Admin: React.FC<AdminProps> = ({
     }
   };
 
-  // File Upload Reader for New Product with automatic compression
+  // Multi-Image Upload Reader for New Product with automatic compression
   const handleNewImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
       setIsCompressingNew(true);
       try {
-        const compressed = await processFileToCompressedDataUrl(file, 1200, 1200, 0.84);
-        if (compressed) {
-          setNewImagePreview(compressed);
+        const compressedList: string[] = [];
+        for (const file of files) {
+          const compressed = await processFileToCompressedDataUrl(file, 1200, 1200, 0.84);
+          if (compressed) {
+            compressedList.push(compressed);
+          }
+        }
+        if (compressedList.length > 0) {
+          if (!newImagePreview) {
+            setNewImagePreview(compressedList[0]);
+            if (compressedList.length > 1) {
+              setNewSecondaryImages(prev => [...prev, ...compressedList.slice(1)]);
+            }
+          } else {
+            setNewSecondaryImages(prev => [...prev, ...compressedList]);
+          }
         }
       } catch (err) {
         console.error('New artwork image compression failed', err);
@@ -130,15 +145,54 @@ export const Admin: React.FC<AdminProps> = ({
     }
   };
 
-  // File Upload Reader for Edit Product with automatic compression
+  // Remove photo from New Product
+  const handleRemoveNewImage = (index: number) => {
+    if (index === 0) {
+      if (newSecondaryImages.length > 0) {
+        setNewImagePreview(newSecondaryImages[0]);
+        setNewSecondaryImages(prev => prev.slice(1));
+      } else {
+        setNewImagePreview('');
+      }
+    } else {
+      setNewSecondaryImages(prev => prev.filter((_, idx) => idx !== index - 1));
+    }
+  };
+
+  // Make a photo the primary cover photo for New Product
+  const handleMakeCoverNewImage = (index: number) => {
+    if (index === 0) return;
+    const targetImage = newSecondaryImages[index - 1];
+    const oldCover = newImagePreview;
+    setNewImagePreview(targetImage);
+    setNewSecondaryImages(prev => {
+      const filtered = prev.filter((_, idx) => idx !== index - 1);
+      return oldCover ? [oldCover, ...filtered] : filtered;
+    });
+  };
+
+  // Multi-Image Upload Reader for Edit Product with automatic compression
   const handleEditImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
       setIsCompressingEdit(true);
       try {
-        const compressed = await processFileToCompressedDataUrl(file, 1200, 1200, 0.84);
-        if (compressed) {
-          setEditImageUrl(compressed);
+        const compressedList: string[] = [];
+        for (const file of files) {
+          const compressed = await processFileToCompressedDataUrl(file, 1200, 1200, 0.84);
+          if (compressed) {
+            compressedList.push(compressed);
+          }
+        }
+        if (compressedList.length > 0) {
+          if (!editImageUrl) {
+            setEditImageUrl(compressedList[0]);
+            if (compressedList.length > 1) {
+              setEditSecondaryImages(prev => [...prev, ...compressedList.slice(1)]);
+            }
+          } else {
+            setEditSecondaryImages(prev => [...prev, ...compressedList]);
+          }
         }
       } catch (err) {
         console.error('Edit artwork image compression failed', err);
@@ -146,6 +200,32 @@ export const Admin: React.FC<AdminProps> = ({
         setIsCompressingEdit(false);
       }
     }
+  };
+
+  // Remove photo from Edit Product
+  const handleRemoveEditImage = (index: number) => {
+    if (index === 0) {
+      if (editSecondaryImages.length > 0) {
+        setEditImageUrl(editSecondaryImages[0]);
+        setEditSecondaryImages(prev => prev.slice(1));
+      } else {
+        setEditImageUrl('');
+      }
+    } else {
+      setEditSecondaryImages(prev => prev.filter((_, idx) => idx !== index - 1));
+    }
+  };
+
+  // Make a photo the primary cover photo for Edit Product
+  const handleMakeCoverEditImage = (index: number) => {
+    if (index === 0) return;
+    const targetImage = editSecondaryImages[index - 1];
+    const oldCover = editImageUrl;
+    setEditImageUrl(targetImage);
+    setEditSecondaryImages(prev => {
+      const filtered = prev.filter((_, idx) => idx !== index - 1);
+      return oldCover ? [oldCover, ...filtered] : filtered;
+    });
   };
 
   const handleCreateProduct = (e: React.FormEvent) => {
@@ -160,6 +240,7 @@ export const Admin: React.FC<AdminProps> = ({
       type: newType,
       price: mainPrice,
       image_url: newImagePreview || '/images/artwork_whispers.jpg',
+      secondary_images: newSecondaryImages,
       description: newDesc || 'Minimalist artwork from the recent series.',
       weight: parseFloat(newWeight) || 1.0,
       stock_quantity: newType === 'original' ? 1 : 10,
@@ -176,6 +257,7 @@ export const Admin: React.FC<AdminProps> = ({
     setShowAddModal(false);
     setNewTitle('');
     setNewImagePreview('');
+    setNewSecondaryImages([]);
   };
 
   const handleOpenEditModal = (p: Product) => {
@@ -188,6 +270,7 @@ export const Admin: React.FC<AdminProps> = ({
     setEditDims(p.dimensions || '');
     setEditDesc(p.description);
     setEditImageUrl(p.image_url);
+    setEditSecondaryImages(p.secondary_images || []);
     setEditBadge((p.badge as any) || (p.stock_quantity === 0 ? 'SOLD' : 'AVAILABLE'));
     
     // Set format options state
@@ -229,6 +312,7 @@ export const Admin: React.FC<AdminProps> = ({
       dimensions: editDims,
       description: editDesc,
       image_url: editImageUrl,
+      secondary_images: editSecondaryImages,
       badge: finalBadge,
       allow_original: allowOrig,
       allow_print: editAllowPrint,
@@ -1094,36 +1178,96 @@ export const Admin: React.FC<AdminProps> = ({
             
             <form onSubmit={handleSaveEdit} className="space-y-4 text-xs font-bold">
               
-              {/* Device Photo Uploader */}
-              <div>
-                <label className="block text-pomelo mb-1 font-bold">Artwork Image (Device Upload)</label>
-                <div className="relative border-2 border-dashed border-pomelo bg-brook/20 p-4 text-center rounded-xl hover:border-amaranth transition-colors cursor-pointer group shadow-inner">
+              {/* MULTI-PICTURE ARTWORK GALLERY UPLOADER (EDIT) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-pomelo font-bold">
+                    Artwork Photos & Detail Views ({([editImageUrl, ...editSecondaryImages].filter(Boolean)).length})
+                  </label>
+                  <span className="text-[10px] text-amaranth font-bold bg-brook/60 px-2 py-0.5 rounded">
+                    Mobile Multi-Photo Enabled
+                  </span>
+                </div>
+
+                {/* Visual Thumbnail Grid */}
+                {([editImageUrl, ...editSecondaryImages].filter(Boolean)).length > 0 && (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 p-3 bg-brook/20 rounded-xl border border-pomelo/50">
+                    {([editImageUrl, ...editSecondaryImages].filter(Boolean)).map((img, idx) => {
+                      const isCover = idx === 0;
+                      return (
+                        <div
+                          key={idx}
+                          className={`relative group rounded-lg overflow-hidden border-2 transition-all aspect-square bg-chalk ${
+                            isCover ? 'border-amaranth ring-2 ring-amaranth/30' : 'border-pomelo/60'
+                          }`}
+                        >
+                          <img src={img} alt={`Artwork View ${idx + 1}`} className="w-full h-full object-cover" />
+                          
+                          {/* Hover / Touch Overlay */}
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5">
+                            <div className="flex justify-between items-start w-full">
+                              {isCover ? (
+                                <span className="bg-amaranth text-chalk text-[8px] font-bold px-1.5 py-0.5 rounded shadow-xs">
+                                  ⭐ Cover
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleMakeCoverEditImage(idx)}
+                                  className="bg-chalk/90 hover:bg-chalk text-amaranth text-[8px] font-bold px-1.5 py-0.5 rounded shadow-xs cursor-pointer"
+                                  title="Make this photo the primary cover"
+                                >
+                                  Make Cover
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveEditImage(idx)}
+                                className="w-5 h-5 bg-rose-600 hover:bg-rose-700 text-chalk rounded-full flex items-center justify-center text-[10px] font-bold shadow-xs cursor-pointer"
+                                title="Remove photo"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Default Cover Badge */}
+                          {isCover && (
+                            <span className="absolute bottom-1 left-1 bg-amaranth text-chalk text-[8px] font-bold px-1.5 py-0.5 rounded shadow-xs group-hover:opacity-0 transition-opacity">
+                              ⭐ Main Cover
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Upload More Photos Dropzone */}
+                <div className="relative border-2 border-dashed border-pomelo bg-brook/20 p-3.5 text-center rounded-xl hover:border-amaranth transition-colors cursor-pointer group shadow-inner">
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={handleEditImageUpload}
                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                   />
                   {isCompressingEdit ? (
-                    <div className="py-4 text-amaranth font-bold flex items-center justify-center space-x-2">
+                    <div className="py-2 text-amaranth font-bold flex items-center justify-center space-x-2">
                       <div className="w-4 h-4 rounded-full border-2 border-amaranth border-t-transparent animate-spin" />
-                      <span>Compressing Device Photo...</span>
-                    </div>
-                  ) : editImageUrl ? (
-                    <div className="flex items-center justify-center space-x-4">
-                      <img src={editImageUrl} alt="Artwork Preview" className="w-20 h-20 object-cover rounded-lg border-2 border-pomelo shadow-xs" />
-                      <div className="text-left space-y-1">
-                        <span className="text-xs text-amaranth font-bold block flex items-center gap-1">
-                          <ImageIcon className="w-4 h-4 text-amaranth" /> Device Photo Loaded
-                        </span>
-                        <span className="text-[10px] text-pomelo font-semibold block">Click or drag new image to replace</span>
-                      </div>
+                      <span>Optimizing Photos from Device...</span>
                     </div>
                   ) : (
-                    <div className="space-y-1 py-2">
-                      <Upload className="w-6 h-6 mx-auto text-amaranth group-hover:scale-110 transition-transform" />
-                      <p className="text-xs font-bold text-amaranth">Upload Photo from Device</p>
-                      <p className="text-[10px] text-pomelo font-bold">Supports JPG, PNG, WEBP (Auto-optimized)</p>
+                    <div className="space-y-1 py-1">
+                      <Upload className="w-5 h-5 mx-auto text-amaranth group-hover:scale-110 transition-transform" />
+                      <p className="text-xs font-bold text-amaranth">
+                        {([editImageUrl, ...editSecondaryImages].filter(Boolean)).length > 0
+                          ? '+ Tap to Add More Photos / Detail Angles'
+                          : 'Tap to Upload Photos (Select 1 or Multiple from Phone/Laptop)'}
+                      </p>
+                      <p className="text-[10px] text-pomelo font-bold">
+                        JPG, PNG, WEBP (Select multiple pictures at once from your phone)
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1371,37 +1515,95 @@ export const Admin: React.FC<AdminProps> = ({
             
             <form onSubmit={handleCreateProduct} className="space-y-4 text-xs font-bold">
               
-              {/* Device Image Uploader */}
-              <div>
-                <label className="block text-pomelo mb-1 font-bold">Upload Artwork Picture (From Device)</label>
-                <div className="relative border-2 border-dashed border-pomelo bg-brook/20 p-5 text-center rounded-xl hover:border-amaranth transition-colors cursor-pointer group shadow-inner">
+              {/* MULTI-PICTURE ARTWORK GALLERY UPLOADER (NEW) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-pomelo font-bold">
+                    Upload Artwork Photos & Detail Views ({([newImagePreview, ...newSecondaryImages].filter(Boolean)).length})
+                  </label>
+                  <span className="text-[10px] text-amaranth font-bold bg-brook/60 px-2 py-0.5 rounded">
+                    Mobile Multi-Photo Enabled
+                  </span>
+                </div>
+
+                {/* Visual Thumbnail Grid */}
+                {([newImagePreview, ...newSecondaryImages].filter(Boolean)).length > 0 && (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 p-3 bg-brook/20 rounded-xl border border-pomelo/50">
+                    {([newImagePreview, ...newSecondaryImages].filter(Boolean)).map((img, idx) => {
+                      const isCover = idx === 0;
+                      return (
+                        <div
+                          key={idx}
+                          className={`relative group rounded-lg overflow-hidden border-2 transition-all aspect-square bg-chalk ${
+                            isCover ? 'border-amaranth ring-2 ring-amaranth/30' : 'border-pomelo/60'
+                          }`}
+                        >
+                          <img src={img} alt={`Artwork View ${idx + 1}`} className="w-full h-full object-cover" />
+                          
+                          {/* Hover / Touch Overlay */}
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5">
+                            <div className="flex justify-between items-start w-full">
+                              {isCover ? (
+                                <span className="bg-amaranth text-chalk text-[8px] font-bold px-1.5 py-0.5 rounded shadow-xs">
+                                  ⭐ Cover
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleMakeCoverNewImage(idx)}
+                                  className="bg-chalk/90 hover:bg-chalk text-amaranth text-[8px] font-bold px-1.5 py-0.5 rounded shadow-xs cursor-pointer"
+                                  title="Make this photo the primary cover"
+                                >
+                                  Make Cover
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveNewImage(idx)}
+                                className="w-5 h-5 bg-rose-600 hover:bg-rose-700 text-chalk rounded-full flex items-center justify-center text-[10px] font-bold shadow-xs cursor-pointer"
+                                title="Remove photo"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Default Cover Badge */}
+                          {isCover && (
+                            <span className="absolute bottom-1 left-1 bg-amaranth text-chalk text-[8px] font-bold px-1.5 py-0.5 rounded shadow-xs group-hover:opacity-0 transition-opacity">
+                              ⭐ Main Cover
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Upload More Photos Dropzone */}
+                <div className="relative border-2 border-dashed border-pomelo bg-brook/20 p-4 text-center rounded-xl hover:border-amaranth transition-colors cursor-pointer group shadow-inner">
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     required={!newImagePreview}
                     onChange={handleNewImageUpload}
                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                   />
                   {isCompressingNew ? (
-                    <div className="py-4 text-amaranth font-bold flex items-center justify-center space-x-2">
+                    <div className="py-3 text-amaranth font-bold flex items-center justify-center space-x-2">
                       <div className="w-4 h-4 rounded-full border-2 border-amaranth border-t-transparent animate-spin" />
-                      <span>Optimizing Device Photo...</span>
-                    </div>
-                  ) : newImagePreview ? (
-                    <div className="flex items-center justify-center space-x-4">
-                      <img src={newImagePreview} alt="Upload Preview" className="w-20 h-20 object-cover rounded-lg border-2 border-pomelo shadow-xs" />
-                      <div className="text-left space-y-1">
-                        <span className="text-xs text-amaranth font-bold block flex items-center gap-1">
-                          <ImageIcon className="w-4 h-4 text-amaranth" /> Device Photo Ready
-                        </span>
-                        <span className="text-[10px] text-pomelo font-semibold block">Click or drag to choose another photo</span>
-                      </div>
+                      <span>Optimizing Photos from Device...</span>
                     </div>
                   ) : (
-                    <div className="space-y-1.5 py-3">
-                      <Upload className="w-7 h-7 mx-auto text-amaranth group-hover:scale-110 transition-transform" />
-                      <p className="text-xs font-bold text-amaranth">Upload Photo from Computer / Phone</p>
-                      <p className="text-[10px] text-pomelo font-bold">Click or drag & drop high-res artwork file (JPG, PNG, WEBP)</p>
+                    <div className="space-y-1.5 py-2">
+                      <Upload className="w-6 h-6 mx-auto text-amaranth group-hover:scale-110 transition-transform" />
+                      <p className="text-xs font-bold text-amaranth">
+                        {newImagePreview ? '+ Tap to Add More Detail Photos / Views' : 'Tap to Upload Photos (Select 1 or Multiple from Phone/Laptop)'}
+                      </p>
+                      <p className="text-[10px] text-pomelo font-bold">
+                        Select front view, canvas texture, close-ups, or room mockups (JPG, PNG, WEBP)
+                      </p>
                     </div>
                   )}
                 </div>

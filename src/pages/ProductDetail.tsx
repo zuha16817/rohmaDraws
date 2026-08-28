@@ -44,7 +44,11 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack })
     }
   }, [product, allowOriginal, allowPrint, allowDigital]);
 
-  const images = [product.image_url, ...(product.secondary_images || [])];
+  useEffect(() => {
+    setSelectedImage(product.image_url);
+  }, [product]);
+
+  const images = [product.image_url, ...(product.secondary_images || [])].filter(Boolean);
 
   // Calculate variant-specific dynamic properties
   const getActiveVariant = () => {
@@ -129,16 +133,17 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack })
 
             {/* Thumbnails */}
             {images.length > 1 && (
-              <div className="flex space-x-4">
+              <div className="flex space-x-3 overflow-x-auto pb-2 scrollbar-none">
                 {images.map((img, idx) => (
                   <button
                     key={idx}
+                    type="button"
                     onClick={() => setSelectedImage(img)}
-                    className={`w-20 h-20 bg-brook/30 overflow-hidden rounded-lg border-2 transition-all cursor-pointer ${
-                      selectedImage === img ? 'border-amaranth shadow-xs' : 'border-pomelo/40 opacity-70 hover:opacity-100'
+                    className={`w-20 h-20 shrink-0 bg-brook/30 overflow-hidden rounded-xl border-2 transition-all cursor-pointer ${
+                      selectedImage === img ? 'border-amaranth shadow-sm ring-2 ring-amaranth/30' : 'border-pomelo/50 opacity-70 hover:opacity-100 hover:border-amaranth'
                     }`}
                   >
-                    <img src={img} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                    <img src={img} alt={`${product.title} View ${idx + 1}`} className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>
