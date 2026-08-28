@@ -123,13 +123,10 @@ export const Admin: React.FC<AdminProps> = ({
       const files = Array.from(e.target.files);
       setIsCompressingNew(true);
       try {
-        const compressedList: string[] = [];
-        for (const file of files) {
-          const compressed = await processFileToCompressedDataUrl(file, 1200, 1200, 0.84);
-          if (compressed) {
-            compressedList.push(compressed);
-          }
-        }
+        const compressedList = (await Promise.all(
+          files.map(file => processFileToCompressedDataUrl(file, 1000, 1000, 0.78))
+        )).filter(Boolean);
+
         if (compressedList.length > 0) {
           if (!newImagePreview) {
             setNewImagePreview(compressedList[0]);
@@ -180,13 +177,10 @@ export const Admin: React.FC<AdminProps> = ({
       const files = Array.from(e.target.files);
       setIsCompressingEdit(true);
       try {
-        const compressedList: string[] = [];
-        for (const file of files) {
-          const compressed = await processFileToCompressedDataUrl(file, 1200, 1200, 0.84);
-          if (compressed) {
-            compressedList.push(compressed);
-          }
-        }
+        const compressedList = (await Promise.all(
+          files.map(file => processFileToCompressedDataUrl(file, 1000, 1000, 0.78))
+        )).filter(Boolean);
+
         if (compressedList.length > 0) {
           if (!editImageUrl) {
             setEditImageUrl(compressedList[0]);
@@ -231,7 +225,7 @@ export const Admin: React.FC<AdminProps> = ({
     });
   };
 
-  const handleCreateProduct = async (e: React.FormEvent) => {
+  const handleCreateProduct = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle) return;
 
@@ -256,19 +250,12 @@ export const Admin: React.FC<AdminProps> = ({
       digital_price: parseFloat(newDigitalPrice) || (newType === 'digital' ? mainPrice : 15)
     };
 
-    setIsSavingNew(true);
-    try {
-      if (onAddProduct) {
-        await onAddProduct(newProd);
-      }
-      setShowAddModal(false);
-      setNewTitle('');
-      setNewImagePreview('');
-      setNewSecondaryImages([]);
-    } catch (err) {
-      console.error('Error creating artwork:', err);
-    } finally {
-      setIsSavingNew(false);
+    setShowAddModal(false);
+    setNewTitle('');
+    setNewImagePreview('');
+    setNewSecondaryImages([]);
+    if (onAddProduct) {
+      onAddProduct(newProd);
     }
   };
 
@@ -293,7 +280,7 @@ export const Admin: React.FC<AdminProps> = ({
     setEditDigitalPrice((p.digital_price || (p.type === 'digital' ? p.price : 15)).toString());
   };
 
-  const handleSaveEdit = async (e: React.FormEvent) => {
+  const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct || !onUpdateProduct) return;
 
@@ -333,15 +320,8 @@ export const Admin: React.FC<AdminProps> = ({
       digital_price: parseFloat(editDigitalPrice) || (editType === 'digital' ? mainPrice : 15)
     };
 
-    setIsSavingEdit(true);
-    try {
-      await onUpdateProduct(updatedProd);
-      setEditingProduct(null);
-    } catch (err) {
-      console.error('Error updating artwork:', err);
-    } finally {
-      setIsSavingEdit(false);
-    }
+    setEditingProduct(null);
+    onUpdateProduct(updatedProd);
   };
 
   const handleConfirmDelete = () => {

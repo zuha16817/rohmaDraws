@@ -5,9 +5,9 @@
 
 export const processFileToCompressedDataUrl = (
   file: File,
-  maxWidth = 1200,
-  maxHeight = 1200,
-  quality = 0.82
+  maxWidth = 1000,
+  maxHeight = 1000,
+  quality = 0.78
 ): Promise<string> => {
   return new Promise((resolve) => {
     try {
