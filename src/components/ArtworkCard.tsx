@@ -32,21 +32,31 @@ export const ArtworkCard: React.FC<ArtworkCardProps> = ({ product, onSelect }) =
       className="group cursor-pointer flex flex-col space-y-3 transition-all duration-300 hover:-translate-y-1.5 p-3.5 rounded-xl bg-pomelo/20 border-2 border-pomelo/60 shadow-xs hover:shadow-md hover:border-amaranth"
     >
       {/* Artwork Container */}
-      <div className="relative aspect-[4/3] sm:aspect-square w-full overflow-hidden bg-brook/30 rounded-lg border border-pomelo/40 shadow-inner">
+      <div
+        onContextMenu={(e) => e.preventDefault()}
+        className="relative aspect-[4/3] sm:aspect-square w-full overflow-hidden bg-brook/30 rounded-lg border border-pomelo/40 shadow-inner flex items-center justify-center p-2 select-none"
+      >
         {/* Status Badge */}
-        <div className="absolute top-3 left-3 z-10">
-          <span className={`text-[10px] font-bold tracking-widest px-3 py-1 uppercase rounded-md ${getBadgeStyle()}`}>
+        <div className="absolute top-2.5 left-2.5 z-10">
+          <span className={`text-[10px] font-bold tracking-widest px-2.5 py-0.5 uppercase rounded-md ${getBadgeStyle()}`}>
             {getBadgeLabel()}
           </span>
         </div>
 
-        {/* Artwork Image */}
+        {/* Uncropped Artwork Image */}
         <img
           src={product.image_url}
           alt={product.title}
-          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
+          draggable={false}
+          onContextMenu={(e) => e.preventDefault()}
+          className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500 ease-out select-none pointer-events-none"
           loading="lazy"
         />
+
+        {/* Subtle Watermark Tag */}
+        <div className="absolute bottom-1.5 right-1.5 pointer-events-none select-none text-[8px] font-bold text-black/35 uppercase tracking-wider">
+          © Rohma Draws
+        </div>
 
         {/* Hover Quick Overlay */}
         <div className="absolute inset-0 bg-text-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-4">

@@ -118,14 +118,35 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack })
           
           {/* Gallery Image Left Column */}
           <div className="md:col-span-7 space-y-4">
-            <div className="aspect-square w-full bg-brook/30 overflow-hidden rounded-xl border-2 border-pomelo shadow-xs relative">
+            <div
+              onContextMenu={(e) => e.preventDefault()}
+              className="min-h-[380px] sm:min-h-[520px] max-h-[75vh] w-full bg-brook/30 rounded-2xl border-2 border-pomelo shadow-xs relative flex items-center justify-center p-3 sm:p-6 overflow-hidden select-none"
+            >
+              {/* Full Artwork Uncropped */}
               <img
                 src={selectedImage}
                 alt={product.title}
-                className="w-full h-full object-cover object-center"
+                draggable={false}
+                onContextMenu={(e) => e.preventDefault()}
+                className="max-h-[65vh] w-auto max-w-full object-contain rounded-lg shadow-sm pointer-events-none transition-all duration-300 select-none"
               />
+
+              {/* Repeating Anti-Screenshot Watermark Grid */}
+              <div aria-hidden="true" className="absolute inset-0 pointer-events-none select-none flex flex-col justify-around overflow-hidden opacity-15 rotate-[-24deg] scale-125">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="whitespace-nowrap text-[12px] sm:text-[14px] font-black tracking-[0.35em] text-[#1c1c1c] uppercase text-center select-none">
+                    ROHMA DRAWS STUDIO • PREVIEW COPY • © ROHMA DRAWS • DO NOT REPRODUCE
+                  </div>
+                ))}
+              </div>
+
+              {/* Corner Copyright Seal */}
+              <div className="absolute bottom-3 right-3 pointer-events-none select-none bg-black/45 backdrop-blur-xs text-chalk text-[9px] sm:text-[10px] font-bold px-2.5 py-1 rounded-md tracking-wider flex items-center gap-1.5 shadow-sm border border-white/20">
+                <span>© Rohma Draws Studio</span>
+              </div>
+
               {isSoldOut && selectedFormat === 'original' && (
-                <div className="absolute top-4 left-4 bg-thulian text-chalk font-bold text-xs px-3.5 py-1.5 uppercase tracking-widest border border-amaranth shadow-sm">
+                <div className="absolute top-4 left-4 bg-thulian text-chalk font-bold text-xs px-3.5 py-1.5 uppercase tracking-widest border border-amaranth shadow-sm rounded-md">
                   Original Sold Out
                 </div>
               )}
@@ -143,7 +164,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack })
                       selectedImage === img ? 'border-amaranth shadow-sm ring-2 ring-amaranth/30' : 'border-pomelo/50 opacity-70 hover:opacity-100 hover:border-amaranth'
                     }`}
                   >
-                    <img src={img} alt={`${product.title} View ${idx + 1}`} className="w-full h-full object-cover" />
+                    <img src={img} alt={`${product.title} View ${idx + 1}`} className="w-full h-full object-contain p-1" />
                   </button>
                 ))}
               </div>
