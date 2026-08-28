@@ -218,15 +218,19 @@ export const AppContent: React.FC = () => {
   }, [commissionsOpen]);
 
   // Fetch live products from MySQL database API on load
-  const loadProducts = () => {
-    fetchProducts().then((data) => {
-      if (data && data.length > 0) {
+  const loadProducts = async () => {
+    try {
+      const data = await fetchProducts();
+      if (Array.isArray(data) && data.length > 0) {
         setProducts(data);
         try {
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
         } catch {}
+        return data;
       }
-    });
+    } catch (e) {
+      console.error('Error fetching products:', e);
+    }
   };
 
   // Fetch live global studio settings (Commissions status, Showcase image, Shipping rates)

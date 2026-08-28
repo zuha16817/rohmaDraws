@@ -228,6 +228,27 @@ class ProductController {
         $processedSecondary = $this->processSecondaryImages($data['secondary_images'] ?? null);
 
         try {
+            // Check if product exists by ID
+            $checkStmt = $this->db->prepare("SELECT id FROM products WHERE id = :id");
+            $checkStmt->execute(['id' => $id]);
+            $existingId = $checkStmt->fetchColumn();
+
+            // If ID not found, match by Title
+            if (!$existingId && !empty($data['title'])) {
+                $titleStmt = $this->db->prepare("SELECT id FROM products WHERE LOWER(TRIM(title)) = LOWER(TRIM(:title)) LIMIT 1");
+                $titleStmt->execute(['title' => $data['title']]);
+                $foundId = $titleStmt->fetchColumn();
+                if ($foundId) {
+                    $id = (int)$foundId;
+                    $existingId = $foundId;
+                }
+            }
+
+            if (!$existingId) {
+                // If product does not exist, create it as new
+                return $this->createProduct($data) !== false;
+            }
+
             $stmt = $this->db->prepare("UPDATE products SET 
                 title = :title, 
                 price = :price, 
