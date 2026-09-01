@@ -456,10 +456,6 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBackToShop, onSuccessOrder
                     <span>{isSubmitting ? 'Connecting to PayNow...' : `Pay via PayNow • S$${totalSgd.toLocaleString('en-SG', { minimumFractionDigits: 2 })}`}</span>
                     <ExternalLink className="w-4 h-4 ml-1" />
                   </button>
-                  <div className="flex items-center justify-center space-x-2 text-[11px] text-[#3D262A]/80 font-bold">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                    <span>Exact amount pre-filled · Instant bank verification via DBS, OCBC, UOB & GrabPay</span>
-                  </div>
                 </div>
               )}
 
