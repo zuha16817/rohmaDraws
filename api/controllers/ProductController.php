@@ -89,10 +89,10 @@ class ProductController {
 
         try {
             if ($type && in_array($type, ['original', 'print', 'digital'])) {
-                $stmt = $this->db->prepare("SELECT * FROM products WHERE type = :type ORDER BY id DESC");
+                $stmt = $this->db->prepare("SELECT * FROM products WHERE type = :type ORDER BY is_featured DESC, carousel_order ASC, id DESC");
                 $stmt->execute(['type' => $type]);
             } else {
-                $stmt = $this->db->prepare("SELECT * FROM products ORDER BY id DESC");
+                $stmt = $this->db->prepare("SELECT * FROM products ORDER BY is_featured DESC, carousel_order ASC, id DESC");
                 $stmt->execute();
             }
             $products = $stmt->fetchAll();
@@ -103,6 +103,8 @@ class ProductController {
                 $p['price'] = (float)$p['price'];
                 $p['weight'] = (float)$p['weight'];
                 $p['stock_quantity'] = (int)$p['stock_quantity'];
+                $p['is_featured'] = isset($p['is_featured']) ? (bool)$p['is_featured'] : false;
+                $p['carousel_order'] = isset($p['carousel_order']) ? (int)$p['carousel_order'] : 0;
                 $p['allow_original'] = isset($p['allow_original']) ? (bool)$p['allow_original'] : true;
                 $p['allow_print'] = isset($p['allow_print']) ? (bool)$p['allow_print'] : true;
                 $p['allow_digital'] = isset($p['allow_digital']) ? (bool)$p['allow_digital'] : true;
@@ -145,35 +147,39 @@ class ProductController {
         try {
             $stmt = $this->db->prepare("SELECT * FROM products WHERE id = :id");
             $stmt->execute(['id' => $id]);
-            $product = $stmt->fetch();
-            if ($product) {
-                $product['id'] = (int)$product['id'];
-                $product['price'] = (float)$product['price'];
-                $product['weight'] = (float)$product['weight'];
-                $product['stock_quantity'] = (int)$product['stock_quantity'];
-                $product['allow_original'] = isset($product['allow_original']) ? (bool)$product['allow_original'] : true;
-                $product['allow_print'] = isset($product['allow_print']) ? (bool)$product['allow_print'] : true;
-                $product['allow_digital'] = isset($product['allow_digital']) ? (bool)$product['allow_digital'] : true;
-                $product['print_price'] = isset($product['print_price']) ? (float)$product['print_price'] : round($product['price'] * 0.25);
-                $product['digital_price'] = isset($product['digital_price']) ? (float)$product['digital_price'] : 15.0;
+            $p = $stmt->fetch();
 
-                // Decode secondary images
-                $sec = $product['secondary_images'] ?? null;
-                if (!empty($sec)) {
-                    if (is_string($sec)) {
-                        $decoded = json_decode($sec, true);
-                        $product['secondary_images'] = is_array($decoded) ? $decoded : [];
-                    } elseif (is_array($sec)) {
-                        $product['secondary_images'] = $sec;
-                    } else {
-                        $product['secondary_images'] = [];
-                    }
+            if (!$p) return null;
+
+            $p['id'] = (int)$p['id'];
+            $p['price'] = (float)$p['price'];
+            $p['weight'] = (float)$p['weight'];
+            $p['stock_quantity'] = (int)$p['stock_quantity'];
+            $p['is_featured'] = isset($p['is_featured']) ? (bool)$p['is_featured'] : false;
+            $p['carousel_order'] = isset($p['carousel_order']) ? (int)$p['carousel_order'] : 0;
+            $p['allow_original'] = isset($p['allow_original']) ? (bool)$p['allow_original'] : true;
+            $p['allow_print'] = isset($p['allow_print']) ? (bool)$p['allow_print'] : true;
+            $p['allow_digital'] = isset($p['allow_digital']) ? (bool)$p['allow_digital'] : true;
+            $p['print_price'] = isset($p['print_price']) ? (float)$p['print_price'] : round($p['price'] * 0.25);
+            $p['digital_price'] = isset($p['digital_price']) ? (float)$p['digital_price'] : 15.0;
+
+            $sec = $p['secondary_images'] ?? null;
+            if (!empty($sec)) {
+                if (is_string($sec)) {
+                    $decoded = json_decode($sec, true);
+                    $p['secondary_images'] = is_array($decoded) ? $decoded : [];
+                } elseif (is_array($sec)) {
+                    $p['secondary_images'] = $sec;
                 } else {
-                    $product['secondary_images'] = [];
+                    $p['secondary_images'] = [];
                 }
+            } else {
+                $p['secondary_images'] = [];
             }
-            return $product ?: null;
+
+            return $p;
         } catch (PDOException $e) {
+            error_log("getProductById Error: " . $e->getMessage());
             return null;
         }
     }
@@ -189,10 +195,10 @@ class ProductController {
         try {
             $stmt = $this->db->prepare("INSERT INTO products (
                 title, description, price, weight, dimensions, type, stock_quantity, 
-                image_url, secondary_images, allow_original, allow_print, allow_digital, print_price, digital_price
+                image_url, secondary_images, is_featured, carousel_order, allow_original, allow_print, allow_digital, print_price, digital_price
             ) VALUES (
                 :title, :description, :price, :weight, :dimensions, :type, :stock_quantity, 
-                :image_url, :secondary_images, :allow_original, :allow_print, :allow_digital, :print_price, :digital_price
+                :image_url, :secondary_images, :is_featured, :carousel_order, :allow_original, :allow_print, :allow_digital, :print_price, :digital_price
             )");
 
             $success = $stmt->execute([
@@ -205,6 +211,8 @@ class ProductController {
                 'stock_quantity' => $data['stock_quantity'] ?? 1,
                 'image_url' => $processedImageUrl,
                 'secondary_images' => $processedSecondary,
+                'is_featured' => !empty($data['is_featured']) ? 1 : 0,
+                'carousel_order' => isset($data['carousel_order']) ? (int)$data['carousel_order'] : 0,
                 'allow_original' => isset($data['allow_original']) ? ($data['allow_original'] ? 1 : 0) : 1,
                 'allow_print' => isset($data['allow_print']) ? ($data['allow_print'] ? 1 : 0) : 1,
                 'allow_digital' => isset($data['allow_digital']) ? ($data['allow_digital'] ? 1 : 0) : 1,
@@ -259,6 +267,8 @@ class ProductController {
                 stock_quantity = :stock_quantity, 
                 image_url = :image_url,
                 secondary_images = :secondary_images,
+                is_featured = :is_featured,
+                carousel_order = :carousel_order,
                 allow_original = :allow_original,
                 allow_print = :allow_print,
                 allow_digital = :allow_digital,
@@ -276,6 +286,8 @@ class ProductController {
                 'stock_quantity' => isset($data['stock_quantity']) ? intval($data['stock_quantity']) : 1,
                 'image_url' => $processedImageUrl,
                 'secondary_images' => $processedSecondary,
+                'is_featured' => !empty($data['is_featured']) ? 1 : 0,
+                'carousel_order' => isset($data['carousel_order']) ? (int)$data['carousel_order'] : 0,
                 'allow_original' => isset($data['allow_original']) ? ($data['allow_original'] ? 1 : 0) : 1,
                 'allow_print' => isset($data['allow_print']) ? ($data['allow_print'] ? 1 : 0) : 1,
                 'allow_digital' => isset($data['allow_digital']) ? ($data['allow_digital'] ? 1 : 0) : 1,
@@ -285,6 +297,31 @@ class ProductController {
             ]);
         } catch (PDOException $e) {
             error_log("updateProduct Error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function updateCarousel(array $featuredIds): bool {
+        if (!$this->db) {
+            return true;
+        }
+
+        try {
+            // First reset all products is_featured to 0
+            $this->db->exec("UPDATE products SET is_featured = 0, carousel_order = 999");
+
+            $stmt = $this->db->prepare("UPDATE products SET is_featured = 1, carousel_order = :ord WHERE id = :id");
+            $order = 1;
+            foreach ($featuredIds as $id) {
+                $stmt->execute([
+                    'ord' => $order++,
+                    'id' => (int)$id
+                ]);
+            }
+
+            return true;
+        } catch (PDOException $e) {
+            error_log("updateCarousel Error: " . $e->getMessage());
             return false;
         }
     }

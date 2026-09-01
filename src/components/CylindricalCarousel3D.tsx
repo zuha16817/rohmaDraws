@@ -61,7 +61,14 @@ export const CylindricalCarousel3D: React.FC<CylindricalCarousel3DProps> = ({ pr
     ([scroll, manual]: number[]) => scroll + manual
   );
 
-  const carouselItems = products.slice(0, 8);
+  // Curated Carousel Artworks: prioritized by Rohma's Admin Carousel Curator
+  const featured = products
+    .filter((p) => p.is_featured)
+    .sort((a, b) => (a.carousel_order ?? 0) - (b.carousel_order ?? 0));
+
+  // If Rohma has selected at least 2 artworks for carousel, display them in her curated order.
+  // Otherwise, gracefully fallback to the latest products.
+  const carouselItems = featured.length >= 2 ? featured : products.slice(0, 8);
   const totalItems = carouselItems.length;
 
   // Touch handlers for smooth continuous drag rotation

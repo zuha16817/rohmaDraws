@@ -12,7 +12,7 @@ import { Checkout } from './pages/Checkout';
 import { OrderSuccess } from './pages/OrderSuccess';
 import { Admin } from './pages/Admin';
 import { Product } from './types';
-import { fetchProducts, createProduct, updateProduct, deleteProduct, fetchCommissionRequests, updateCommissionStatus, deleteCommissionRequest, fetchOrders, updateOrderStatus, deleteOrder, submitOrder, fetchStudioSettings, updateStudioSettings } from './services/api';
+import { fetchProducts, createProduct, updateProduct, deleteProduct, updateHomepageCarousel, fetchCommissionRequests, updateCommissionStatus, deleteCommissionRequest, fetchOrders, updateOrderStatus, deleteOrder, submitOrder, fetchStudioSettings, updateStudioSettings } from './services/api';
 import { INITIAL_PRODUCTS } from './data/mockData';
 
 const LOCAL_STORAGE_KEY = 'rohma_draws_published_products';
@@ -312,6 +312,22 @@ export const AppContent: React.FC = () => {
     await loadProducts();
   };
 
+  const handleUpdateCarousel = async (featuredIds: number[]) => {
+    // Optimistically update products state
+    setProducts((prev) =>
+      prev.map((p) => {
+        const idx = featuredIds.indexOf(p.id);
+        if (idx !== -1) {
+          return { ...p, is_featured: true, carousel_order: idx + 1 };
+        } else {
+          return { ...p, is_featured: false, carousel_order: 999 };
+        }
+      })
+    );
+    await updateHomepageCarousel(featuredIds);
+    await loadProducts();
+  };
+
   const handleUpdateCommissionStatus = (id: number, status: string) => {
     setCommissionRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
     updateCommissionStatus(id, status);
@@ -407,6 +423,7 @@ export const AppContent: React.FC = () => {
             onUpdateProduct={handleUpdateProduct}
             onDeleteProduct={handleDeleteProduct}
             onAddProduct={handleAddProduct}
+            onUpdateCarousel={handleUpdateCarousel}
             commissionCardImage={commissionCardImage}
             onUpdateCommissionImage={handleUpdateCommissionImage}
             commissionsOpen={commissionsOpen}

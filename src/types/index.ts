@@ -13,6 +13,7 @@ export interface Product {
   secondary_images?: string[];
   digital_file_url?: string;
   is_featured?: boolean;
+  carousel_order?: number;
   year?: number;
   badge?: 'AVAILABLE' | 'SOLD' | 'LIMITED EDITION' | 'INSTANT DOWNLOAD';
   

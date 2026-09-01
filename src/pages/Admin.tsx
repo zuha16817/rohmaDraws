@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Package, ShoppingBag, MessageSquare, Plus, Check, Clock, Pencil, Trash2, X, AlertTriangle, Upload, Image as ImageIcon, Sliders, Palette, FileText, Sparkles, RefreshCw, Lock, ToggleLeft, ToggleRight, ExternalLink, Mail, User, DollarSign, Calendar, CheckCircle2, MapPin } from 'lucide-react';
+import { Package, ShoppingBag, MessageSquare, Plus, Check, Clock, Pencil, Trash2, X, AlertTriangle, Upload, Image as ImageIcon, Sliders, Palette, FileText, Sparkles, RefreshCw, Lock, ToggleLeft, ToggleRight, ExternalLink, Mail, User, DollarSign, Calendar, CheckCircle2, MapPin, Star, ArrowLeft, ArrowRight, Layers, Search } from 'lucide-react';
 import { Product } from '../types';
 import { compressImage, processFileToCompressedDataUrl } from '../utils/imageCompressor';
 
@@ -8,6 +8,7 @@ interface AdminProps {
   onAddProduct: (p: Product) => void;
   onUpdateProduct?: (p: Product) => void;
   onDeleteProduct?: (id: number) => void;
+  onUpdateCarousel?: (featuredIds: number[]) => void;
   commissionCardImage?: string;
   onUpdateCommissionImage?: (imgUrl: string) => void;
   commissionsOpen?: boolean;
@@ -27,6 +28,7 @@ export const Admin: React.FC<AdminProps> = ({
   onAddProduct,
   onUpdateProduct,
   onDeleteProduct,
+  onUpdateCarousel,
   commissionCardImage = '/images/artwork_flowers_pink.png',
   onUpdateCommissionImage,
   commissionsOpen = true,
@@ -40,8 +42,9 @@ export const Admin: React.FC<AdminProps> = ({
   onUpdateOrderStatus,
   onDeleteOrder
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'inventory' | 'showcase' | 'orders' | 'commissions'>('inventory');
+  const [activeSubTab, setActiveSubTab] = useState<'inventory' | 'carousel' | 'showcase' | 'orders' | 'commissions'>('inventory');
   const [inventoryCategory, setInventoryCategory] = useState<'all' | 'original' | 'print_digital'>('all');
+  const [carouselSearchQuery, setCarouselSearchQuery] = useState('');
   
   // Create Modal State
   const [showAddModal, setShowAddModal] = useState(false);
@@ -63,6 +66,7 @@ export const Admin: React.FC<AdminProps> = ({
   const [newAllowDigital, setNewAllowDigital] = useState(true);
   const [newPrintPrice, setNewPrintPrice] = useState('240');
   const [newDigitalPrice, setNewDigitalPrice] = useState('15');
+  const [newIsFeatured, setNewIsFeatured] = useState(false);
 
   // Edit Modal State
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -85,6 +89,7 @@ export const Admin: React.FC<AdminProps> = ({
   const [editAllowDigital, setEditAllowDigital] = useState(true);
   const [editPrintPrice, setEditPrintPrice] = useState('240');
   const [editDigitalPrice, setEditDigitalPrice] = useState('15');
+  const [editIsFeatured, setEditIsFeatured] = useState(false);
 
   // Delete Modal State
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
@@ -225,6 +230,63 @@ export const Admin: React.FC<AdminProps> = ({
     });
   };
 
+  // Curated featured carousel artworks (sorted by order)
+  const featuredProducts = products
+    .filter((p) => p.is_featured)
+    .sort((a, b) => (a.carousel_order ?? 0) - (b.carousel_order ?? 0));
+
+  // Toggle single artwork in/out of homepage carousel
+  const handleToggleCarouselItem = (productId: number) => {
+    const isCurrentlyFeatured = products.some((p) => p.id === productId && p.is_featured);
+    let newFeaturedIds: number[];
+    if (isCurrentlyFeatured) {
+      newFeaturedIds = featuredProducts.filter((p) => p.id !== productId).map((p) => p.id);
+    } else {
+      newFeaturedIds = [...featuredProducts.map((p) => p.id), productId];
+    }
+    if (onUpdateCarousel) {
+      onUpdateCarousel(newFeaturedIds);
+    }
+  };
+
+  // Reorder artwork within the homepage carousel sequence
+  const handleMoveCarouselItem = (productId: number, direction: 'left' | 'right') => {
+    const currentIndex = featuredProducts.findIndex((p) => p.id === productId);
+    if (currentIndex === -1) return;
+    const targetIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= featuredProducts.length) return;
+
+    const list = [...featuredProducts.map((p) => p.id)];
+    const temp = list[currentIndex];
+    list[currentIndex] = list[targetIndex];
+    list[targetIndex] = temp;
+
+    if (onUpdateCarousel) {
+      onUpdateCarousel(list);
+    }
+  };
+
+  // Select all published inventory for homepage carousel
+  const handleSelectAllCarousel = () => {
+    if (onUpdateCarousel) {
+      onUpdateCarousel(products.map((p) => p.id));
+    }
+  };
+
+  // Clear all carousel artworks
+  const handleClearCarousel = () => {
+    if (onUpdateCarousel) {
+      onUpdateCarousel([]);
+    }
+  };
+
+  // Auto-curate top 6 artworks
+  const handlePresetTop6Carousel = () => {
+    if (onUpdateCarousel) {
+      onUpdateCarousel(products.slice(0, 6).map((p) => p.id));
+    }
+  };
+
   const handleCreateProduct = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle) return;
@@ -238,6 +300,7 @@ export const Admin: React.FC<AdminProps> = ({
       price: mainPrice,
       image_url: newImagePreview || '/images/artwork_whispers.jpg',
       secondary_images: newSecondaryImages,
+      is_featured: newIsFeatured,
       description: newDesc || 'Minimalist artwork from the recent series.',
       weight: parseFloat(newWeight) || 1.0,
       stock_quantity: newType === 'original' ? 1 : 10,
@@ -254,6 +317,7 @@ export const Admin: React.FC<AdminProps> = ({
     setNewTitle('');
     setNewImagePreview('');
     setNewSecondaryImages([]);
+    setNewIsFeatured(false);
     if (onAddProduct) {
       onAddProduct(newProd);
     }
@@ -271,6 +335,7 @@ export const Admin: React.FC<AdminProps> = ({
     setEditImageUrl(p.image_url);
     setEditSecondaryImages(p.secondary_images || []);
     setEditBadge((p.badge as any) || (p.stock_quantity === 0 ? 'SOLD' : 'AVAILABLE'));
+    setEditIsFeatured(p.is_featured || false);
     
     // Set format options state
     setEditAllowOriginal(p.type === 'original' && p.allow_original !== false && p.stock_quantity > 0);
@@ -312,6 +377,7 @@ export const Admin: React.FC<AdminProps> = ({
       description: editDesc,
       image_url: editImageUrl,
       secondary_images: editSecondaryImages,
+      is_featured: editIsFeatured,
       badge: finalBadge,
       allow_original: allowOrig,
       allow_print: editAllowPrint,
@@ -400,6 +466,23 @@ export const Admin: React.FC<AdminProps> = ({
             <span>{p.stock_quantity > 0 && p.badge !== 'SOLD' ? 'Available' : 'Sold Out'}</span>
           </button>
         </td>
+        {/* Homepage Carousel Feature Toggle */}
+        <td className="py-3.5 px-4 text-center">
+          <button
+            type="button"
+            onClick={() => handleToggleCarouselItem(p.id)}
+            className={`px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5 border mx-auto ${
+              p.is_featured
+                ? 'bg-amber-100/90 text-amber-900 border-amber-400 hover:bg-amber-200'
+                : 'bg-chalk text-pomelo border-pomelo/40 hover:bg-pomelo/20 hover:text-amaranth'
+            }`}
+            title={p.is_featured ? 'Currently rotating in Homepage 3D Carousel (Click to remove)' : 'Click to feature in Homepage 3D Carousel'}
+          >
+            <Star className={`w-3.5 h-3.5 ${p.is_featured ? 'text-amber-600 fill-amber-500' : 'text-pomelo'}`} />
+            <span>{p.is_featured ? 'In Carousel' : '+ Add'}</span>
+          </button>
+        </td>
+
         <td className="py-3.5 px-4 text-center">
           <div className="flex items-center justify-center space-x-2">
             {/* Edit Button */}
@@ -485,6 +568,20 @@ export const Admin: React.FC<AdminProps> = ({
           </button>
 
           <button
+            onClick={() => setActiveSubTab('carousel')}
+            className={`py-3 px-5 rounded-t-lg transition-colors border-t border-x shrink-0 cursor-pointer ${
+              activeSubTab === 'carousel'
+                ? 'bg-amaranth text-chalk border-amaranth shadow-xs'
+                : 'bg-brook/30 text-amaranth border-pomelo/30 hover:bg-thulian hover:text-chalk'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <Star className="w-4 h-4 text-amber-300 fill-amber-300" />
+              <span>Homepage 3D Carousel ({featuredProducts.length})</span>
+            </div>
+          </button>
+
+          <button
             onClick={() => setActiveSubTab('showcase')}
             className={`py-3 px-5 rounded-t-lg transition-colors border-t border-x shrink-0 cursor-pointer ${
               activeSubTab === 'showcase'
@@ -494,7 +591,7 @@ export const Admin: React.FC<AdminProps> = ({
           >
             <div className="flex items-center space-x-2">
               <Sparkles className="w-4 h-4" />
-              <span>Commissions Showcase & Status ({commissionsOpen ? 'OPEN' : 'CLOSED'})</span>
+              <span>Commissions Showcase ({commissionsOpen ? 'OPEN' : 'CLOSED'})</span>
             </div>
           </button>
 
@@ -593,6 +690,7 @@ export const Admin: React.FC<AdminProps> = ({
                         <th className="py-3 px-4">Original Price</th>
                         <th className="py-3 px-4">Enabled Purchasing Formats</th>
                         <th className="py-3 px-4">Stock Status</th>
+                        <th className="py-3 px-4 text-center">In Carousel</th>
                         <th className="py-3 px-4 text-center">Actions</th>
                       </tr>
                     </thead>
@@ -600,7 +698,7 @@ export const Admin: React.FC<AdminProps> = ({
                       {originalArtworks.map((p) => renderArtworkRow(p))}
                       {originalArtworks.length === 0 && (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-pomelo font-bold italic">
+                          <td colSpan={7} className="py-8 text-center text-pomelo font-bold italic">
                             No original canvas paintings found.
                           </td>
                         </tr>
@@ -635,6 +733,7 @@ export const Admin: React.FC<AdminProps> = ({
                         <th className="py-3 px-4">Base Price</th>
                         <th className="py-3 px-4">Enabled Purchasing Formats</th>
                         <th className="py-3 px-4">Stock Status</th>
+                        <th className="py-3 px-4 text-center">In Carousel</th>
                         <th className="py-3 px-4 text-center">Actions</th>
                       </tr>
                     </thead>
@@ -642,7 +741,7 @@ export const Admin: React.FC<AdminProps> = ({
                       {printDigitalArtworks.map((p) => renderArtworkRow(p))}
                       {printDigitalArtworks.length === 0 && (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-pomelo font-bold italic">
+                          <td colSpan={7} className="py-8 text-center text-pomelo font-bold italic">
                             No print or digital copy items found.
                           </td>
                         </tr>
@@ -652,6 +751,283 @@ export const Admin: React.FC<AdminProps> = ({
                 </div>
               </div>
             )}
+
+          </div>
+        )}
+
+        {/* Tab 2: HOMEPAGE CAROUSEL CURATOR */}
+        {activeSubTab === 'carousel' && (
+          <div className="space-y-8">
+            
+            {/* Carousel Curator Header Card */}
+            <div className="p-6 sm:p-8 bg-pomelo/20 rounded-2xl border-2 border-pomelo/60 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div className="space-y-2 max-w-2xl">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-chalk bg-amaranth px-3 py-1 rounded shadow-xs flex items-center gap-1.5">
+                    <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
+                    <span>HOMEPAGE 3D CAROUSEL CURATOR</span>
+                  </span>
+                  <span className="text-xs font-bold text-amber-900 bg-amber-100 px-3 py-1 rounded-full border border-amber-300">
+                    {featuredProducts.length} Selected (Recommended: 3 to 8)
+                  </span>
+                </div>
+                <h2 className="font-serif text-2xl sm:text-3xl font-bold text-amaranth">
+                  Curate Artwork Rotation Sequence
+                </h2>
+                <p className="text-xs sm:text-sm text-text-primary/90 leading-relaxed font-medium">
+                  Choose exactly which paintings rotate in the interactive 3D cylindrical carousel on the homepage and arrange their display order. Changes save instantly across phone, tablet, and desktop.
+                </p>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="flex flex-wrap gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={handlePresetTop6Carousel}
+                  className="px-3.5 py-2 bg-brook text-amaranth hover:bg-amaranth hover:text-chalk rounded-xl text-xs font-bold transition-all border border-pomelo shadow-xs cursor-pointer flex items-center gap-1.5"
+                  title="Auto-select top 6 newest artworks"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Auto Top 6</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSelectAllCarousel}
+                  className="px-3.5 py-2 bg-brook text-amaranth hover:bg-amaranth hover:text-chalk rounded-xl text-xs font-bold transition-all border border-pomelo shadow-xs cursor-pointer flex items-center gap-1.5"
+                  title="Feature all catalog artworks"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Select All ({products.length})</span>
+                </button>
+                {featuredProducts.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearCarousel}
+                    className="px-3.5 py-2 bg-thulian/20 text-amaranth hover:bg-thulian hover:text-chalk rounded-xl text-xs font-bold transition-all border border-thulian/50 shadow-xs cursor-pointer flex items-center gap-1.5"
+                    title="Clear all carousel selections"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Clear All</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* SECTION A: CURRENT CAROUSEL SEQUENCE & REORDERING */}
+            <div className="bg-chalk rounded-2xl border-2 border-pomelo shadow-xs p-6 sm:p-8 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-pomelo/40 pb-4">
+                <div>
+                  <h3 className="font-serif text-xl font-bold text-amaranth flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-amaranth" />
+                    <span>Current Carousel Rotation Order ({featuredProducts.length})</span>
+                  </h3>
+                  <p className="text-xs text-pomelo font-bold mt-1">
+                    Artworks will display around the 3D cylinder in the sequence below. Tap ◀ / ▶ on any card to change its position.
+                  </p>
+                </div>
+              </div>
+
+              {featuredProducts.length === 0 ? (
+                <div className="py-12 px-4 text-center bg-brook/20 rounded-2xl border-2 border-dashed border-pomelo/50 space-y-3">
+                  <Star className="w-10 h-10 text-pomelo mx-auto opacity-50" />
+                  <p className="font-serif text-lg font-bold text-amaranth">No Artworks in Carousel Yet</p>
+                  <p className="text-xs text-pomelo max-w-md mx-auto font-medium">
+                    Tap <span className="font-bold text-amaranth">+ Add to Carousel</span> on any painting in the catalog below or click <span className="font-bold text-amaranth">Auto Top 6</span> above to populate the homepage showcase.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {featuredProducts.map((p, idx) => (
+                    <div
+                      key={p.id}
+                      className="bg-chalk p-3.5 rounded-2xl border-2 border-amber-300 shadow-sm flex flex-col justify-between space-y-3 relative group hover:border-amber-400 transition-all"
+                    >
+                      {/* Sequence Badge */}
+                      <div className="flex items-center justify-between">
+                        <span className="bg-amber-400 text-amber-950 text-xs font-extrabold px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+                          <Star className="w-3 h-3 fill-amber-950" />
+                          <span>#{idx + 1}</span>
+                        </span>
+                        <span className="text-[10px] uppercase font-bold text-pomelo tracking-wider">
+                          {p.type}
+                        </span>
+                      </div>
+
+                      {/* Image Thumbnail */}
+                      <div className="aspect-square w-full rounded-xl overflow-hidden bg-brook/30 border border-pomelo/40 relative">
+                        <img
+                          src={p.image_url}
+                          alt={p.title}
+                          className="w-full h-full object-contain p-1"
+                        />
+                      </div>
+
+                      {/* Title & Price */}
+                      <div>
+                        <h4 className="font-serif font-bold text-amaranth text-sm truncate" title={p.title}>
+                          {p.title}
+                        </h4>
+                        <span className="text-xs font-mono font-bold text-pomelo">
+                          ${p.price.toLocaleString()} USD
+                        </span>
+                      </div>
+
+                      {/* Reorder & Remove Controls */}
+                      <div className="flex items-center justify-between gap-1 pt-1 border-t border-pomelo/30">
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={() => handleMoveCarouselItem(p.id, 'left')}
+                            className="p-1.5 bg-brook text-amaranth hover:bg-amaranth hover:text-chalk rounded-lg transition-colors border border-pomelo shadow-xs disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                            title="Move earlier in sequence"
+                          >
+                            <ArrowLeft className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={idx === featuredProducts.length - 1}
+                            onClick={() => handleMoveCarouselItem(p.id, 'right')}
+                            className="p-1.5 bg-brook text-amaranth hover:bg-amaranth hover:text-chalk rounded-lg transition-colors border border-pomelo shadow-xs disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                            title="Move later in sequence"
+                          >
+                            <ArrowRight className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleToggleCarouselItem(p.id)}
+                          className="px-2.5 py-1 text-[10px] font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors cursor-pointer"
+                          title="Remove from carousel"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* SECTION B: COMPLETE CATALOG PICKER */}
+            <div className="bg-chalk rounded-2xl border-2 border-pomelo shadow-xs p-6 sm:p-8 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-pomelo/40 pb-4">
+                <div>
+                  <h3 className="font-serif text-xl font-bold text-amaranth flex items-center gap-2">
+                    <Package className="w-5 h-5 text-amaranth" />
+                    <span>Complete Studio Inventory ({products.length})</span>
+                  </h3>
+                  <p className="text-xs text-pomelo font-bold mt-1">
+                    Tap any artwork to add or remove it from the homepage 3D carousel.
+                  </p>
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-pomelo pointer-events-none" />
+                  <input
+                    type="text"
+                    value={carouselSearchQuery}
+                    onChange={(e) => setCarouselSearchQuery(e.target.value)}
+                    placeholder="Search artworks..."
+                    className="w-full bg-chalk pl-9 pr-4 py-2 border border-pomelo rounded-xl text-xs text-text-primary focus:outline-none focus:border-amaranth font-medium"
+                  />
+                  {carouselSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setCarouselSearchQuery('')}
+                      className="absolute right-2.5 top-2 text-pomelo hover:text-amaranth"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Artwork Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {products
+                  .filter((p) =>
+                    !carouselSearchQuery ||
+                    p.title.toLowerCase().includes(carouselSearchQuery.toLowerCase()) ||
+                    p.type.toLowerCase().includes(carouselSearchQuery.toLowerCase())
+                  )
+                  .map((p) => {
+                    const isFeatured = p.is_featured;
+                    const orderIndex = featuredProducts.findIndex((fp) => fp.id === p.id);
+
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => handleToggleCarouselItem(p.id)}
+                        className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3 ${
+                          isFeatured
+                            ? 'bg-amber-50/50 border-amber-400 shadow-sm ring-2 ring-amber-400/20'
+                            : 'bg-chalk border-pomelo/50 hover:border-amaranth hover:shadow-xs'
+                        }`}
+                      >
+                        {/* Status Pill */}
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                            isFeatured
+                              ? 'bg-amber-400 text-amber-950 font-extrabold flex items-center gap-1 shadow-xs'
+                              : 'bg-pomelo/20 text-pomelo'
+                          }`}>
+                            {isFeatured ? (
+                              <>
+                                <Star className="w-3 h-3 fill-amber-950" />
+                                <span>#{orderIndex + 1} in Carousel</span>
+                              </>
+                            ) : (
+                              'Not in Carousel'
+                            )}
+                          </span>
+                          <span className="text-[10px] font-mono font-bold text-pomelo">
+                            ${p.price.toLocaleString()}
+                          </span>
+                        </div>
+
+                        {/* Image Thumbnail */}
+                        <div className="aspect-square w-full rounded-xl overflow-hidden bg-brook/30 border border-pomelo/30 relative">
+                          <img
+                            src={p.image_url}
+                            alt={p.title}
+                            className="w-full h-full object-contain p-1"
+                          />
+                        </div>
+
+                        {/* Info & Action Button */}
+                        <div>
+                          <h4 className="font-serif font-bold text-amaranth text-sm truncate" title={p.title}>
+                            {p.title}
+                          </h4>
+                          <span className="text-[10px] text-pomelo font-bold uppercase block mt-0.5">
+                            {p.dimensions || 'Original Canvas'}
+                          </span>
+                        </div>
+
+                        {/* 1-Tap Toggle Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleCarouselItem(p.id);
+                          }}
+                          className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer ${
+                            isFeatured
+                              ? 'bg-amber-400 text-amber-950 hover:bg-amber-500 font-extrabold'
+                              : 'bg-brook text-amaranth hover:bg-amaranth hover:text-chalk border border-pomelo/60'
+                          }`}
+                        >
+                          <Star className={`w-3.5 h-3.5 ${isFeatured ? 'fill-amber-950 text-amber-950' : 'text-amaranth'}`} />
+                          <span>{isFeatured ? '✓ Active in Carousel' : '+ Add to Carousel'}</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
 
           </div>
         )}
@@ -1438,6 +1814,27 @@ export const Admin: React.FC<AdminProps> = ({
                 />
               </div>
 
+              {/* Homepage Carousel Feature Toggle */}
+              <div className="bg-pomelo/10 border border-pomelo/40 p-3.5 rounded-xl">
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editIsFeatured}
+                    onChange={(e) => setEditIsFeatured(e.target.checked)}
+                    className="w-4 h-4 text-amaranth rounded border-pomelo focus:ring-amaranth accent-amaranth"
+                  />
+                  <div>
+                    <span className="font-bold text-xs uppercase tracking-wider text-amaranth flex items-center gap-1.5">
+                      <Star className={`w-3.5 h-3.5 ${editIsFeatured ? 'fill-amber-500 text-amber-600' : 'text-pomelo'}`} />
+                      Feature in Homepage 3D Carousel
+                    </span>
+                    <p className="text-[10px] text-pomelo font-bold mt-0.5">
+                      Display this artwork in the interactive 3D rotating cylinder on the homepage
+                    </p>
+                  </div>
+                </label>
+              </div>
+
               <div>
                 <label className="block text-pomelo mb-1">Description</label>
                 <textarea
@@ -1749,6 +2146,27 @@ export const Admin: React.FC<AdminProps> = ({
                     className="w-full bg-chalk border-b-2 border-pomelo py-1.5 px-2 text-text-primary focus:outline-none"
                   />
                 </div>
+              </div>
+
+              {/* Homepage Carousel Feature Toggle */}
+              <div className="bg-pomelo/10 border border-pomelo/40 p-3.5 rounded-xl">
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newIsFeatured}
+                    onChange={(e) => setNewIsFeatured(e.target.checked)}
+                    className="w-4 h-4 text-amaranth rounded border-pomelo focus:ring-amaranth accent-amaranth"
+                  />
+                  <div>
+                    <span className="font-bold text-xs uppercase tracking-wider text-amaranth flex items-center gap-1.5">
+                      <Star className={`w-3.5 h-3.5 ${newIsFeatured ? 'fill-amber-500 text-amber-600' : 'text-pomelo'}`} />
+                      Feature in Homepage 3D Carousel
+                    </span>
+                    <p className="text-[10px] text-pomelo font-bold mt-0.5">
+                      Display this artwork in the interactive 3D rotating cylinder on the homepage
+                    </p>
+                  </div>
+                </label>
               </div>
 
               <div>

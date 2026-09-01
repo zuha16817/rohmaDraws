@@ -24,6 +24,8 @@ try {
     @$db->exec("ALTER TABLE products MODIFY image_url LONGTEXT NOT NULL");
     @$db->exec("ALTER TABLE products MODIFY secondary_images LONGTEXT DEFAULT NULL");
     @$db->exec("ALTER TABLE products MODIFY digital_file_url LONGTEXT DEFAULT NULL");
+    @$db->exec("ALTER TABLE products ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT FALSE");
+    @$db->exec("ALTER TABLE products ADD COLUMN IF NOT EXISTS carousel_order INT DEFAULT 0");
 
     // Fix commission_requests table: add missing reference_url column if not exists
     @$db->exec("ALTER TABLE commission_requests ADD COLUMN IF NOT EXISTS reference_url VARCHAR(500) DEFAULT NULL");

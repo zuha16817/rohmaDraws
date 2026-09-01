@@ -41,7 +41,14 @@ try {
             }
         } elseif ($method === 'POST') {
             $action = $_GET['action'] ?? ($input['action'] ?? null);
-            if ($action === 'update') {
+            if ($action === 'update_carousel') {
+                $featuredIds = $input['featured_ids'] ?? [];
+                if ($controller->updateCarousel($featuredIds)) {
+                    echo json_encode(['status' => 'success', 'message' => 'Homepage carousel updated successfully.']);
+                } else {
+                    echo json_encode(['status' => 'error', 'message' => 'Failed to update homepage carousel.']);
+                }
+            } elseif ($action === 'update') {
                 $id = isset($_GET['id']) ? intval($_GET['id']) : ($input['id'] ?? null);
                 if ($id && $controller->updateProduct($id, $input ?? [])) {
                     echo json_encode(['status' => 'success', 'message' => 'Artwork updated in database.']);

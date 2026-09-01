@@ -70,6 +70,22 @@ export const updateProduct = async (id: number, data: Partial<Product>) => {
   return { status: 'success', message: 'Artwork updated successfully.' };
 };
 
+export const updateHomepageCarousel = async (featuredIds: number[]) => {
+  try {
+    const res = await fetch(`${API_BASE}/products?action=update_carousel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ featured_ids: featuredIds })
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (e) {
+    console.error('Error updating homepage carousel:', e);
+  }
+  return { status: 'success', message: 'Homepage carousel updated successfully.' };
+};
+
 export const deleteProduct = async (id: number) => {
   try {
     const res = await fetch(`${API_BASE}/products?id=${id}`, {
