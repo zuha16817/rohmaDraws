@@ -39,4 +39,41 @@ class PaymentController {
             'approval_url' => 'https://www.sandbox.paypal.com/checkoutnow?token=PAYPAL-MOCK-TOKEN'
         ];
     }
+
+    public function createCheckoutSession(array $input): array {
+        $items = $input['items'] ?? [];
+        $customerEmail = trim($input['customer_email'] ?? ($input['email'] ?? ''));
+        $successUrl = $input['success_url'] ?? 'https://rohmadraws.com/?status=success&session_id={CHECKOUT_SESSION_ID}';
+        $cancelUrl = $input['cancel_url'] ?? 'https://rohmadraws.com/?status=cancel';
+        $paymentMethod = $input['payment_method'] ?? 'all';
+        $currency = $input['currency'] ?? ($paymentMethod === 'paynow' ? 'sgd' : 'usd');
+        $metadata = $input['metadata'] ?? [];
+
+        if (empty($items)) {
+            return ['status' => 'error', 'message' => 'No items provided for checkout.'];
+        }
+
+        return $this->stripeService->createCheckoutSession(
+            $items,
+            $customerEmail,
+            $successUrl,
+            $cancelUrl,
+            $paymentMethod,
+            $currency,
+            $metadata
+        );
+    }
+
+    public function verifySession(string $sessionId): array {
+        $session = $this->stripeService->getCheckoutSession($sessionId);
+        if (!$session) {
+            return ['status' => 'error', 'message' => 'Session not found.'];
+        }
+
+        return [
+            'status' => 'success',
+            'session' => $session,
+            'is_paid' => ($session['payment_status'] ?? '') === 'paid'
+        ];
+    }
 }

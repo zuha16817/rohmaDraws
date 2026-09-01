@@ -142,6 +142,13 @@ try {
                 echo json_encode(['status' => 'error', 'message' => 'Failed to delete order.']);
             }
         }
+    } elseif (strpos($uri, '/api/payments/checkout-session') !== false && $method === 'POST') {
+        $controller = new PaymentController();
+        echo json_encode($controller->createCheckoutSession($input ?? []));
+    } elseif (strpos($uri, '/api/payments/verify-session') !== false && $method === 'GET') {
+        $sessionId = $_GET['session_id'] ?? '';
+        $controller = new PaymentController();
+        echo json_encode($controller->verifySession($sessionId));
     } elseif (strpos($uri, '/api/payments/stripe-intent') !== false && $method === 'POST') {
         $controller = new PaymentController();
         echo json_encode($controller->createStripePaymentIntent($input ?? []));

@@ -105,15 +105,39 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBackToShop, onSuccessOrder
       shippingAddress: getFullAddressString(),
       shippingCountry: shippingCountry,
       shippingCost: shippingCost,
-      orderNumber: orderNumber
+      orderNumber: orderNumber,
+      paymentMethod: 'card'
     });
+    setIsSubmitting(false);
   };
 
-  const handleOpenPayNow = () => {
+  const handleOpenPayNow = async () => {
     if (!validateDetails()) return;
-    const orderNumber = 'AA-SG' + Math.floor(100000 + Math.random() * 900000);
+    setIsSubmitting(true);
+
+    const orderNumber = 'RD-PN-' + strtoupper(Math.random().toString(36).substring(2, 8));
     setActiveOrderNumber(orderNumber);
-    setShowPayNowModal(true);
+
+    const itemsPayload = cart.map((i) => ({
+      id: i.product.id,
+      title: i.product.title,
+      price: Math.round(i.product.price * USD_TO_SGD * 100) / 100,
+      quantity: i.quantity,
+      type: i.product.type,
+      image_url: i.product.image_url || ''
+    }));
+
+    await redirectToStripeHostedCheckout({
+      items: itemsPayload,
+      customerName: customerName.trim(),
+      customerEmail: customerEmail.trim(),
+      shippingAddress: getFullAddressString(),
+      shippingCountry: shippingCountry,
+      shippingCost: Math.round(shippingCost * USD_TO_SGD * 100) / 100,
+      orderNumber: orderNumber,
+      paymentMethod: 'paynow'
+    });
+    setIsSubmitting(false);
   };
 
   const executePayNowOrderSubmission = async () => {
@@ -425,10 +449,17 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBackToShop, onSuccessOrder
                   <button
                     type="button"
                     onClick={handleOpenPayNow}
-                    className="w-full py-4 bg-amaranth text-chalk text-xs sm:text-sm font-bold tracking-widest uppercase hover:bg-thulian transition-all shadow-md rounded-xl border border-amaranth cursor-pointer"
+                    disabled={isSubmitting}
+                    className="w-full py-4 bg-amaranth text-chalk text-xs sm:text-sm font-bold tracking-widest uppercase hover:bg-thulian transition-all shadow-md rounded-xl border border-amaranth flex items-center justify-center space-x-2 hover:scale-[1.01] cursor-pointer disabled:opacity-60"
                   >
-                    <span>Open PayNow QR • S${totalSgd.toLocaleString('en-SG', { minimumFractionDigits: 2 })}</span>
+                    <Lock className="w-4 h-4" />
+                    <span>{isSubmitting ? 'Connecting to PayNow...' : `Pay via PayNow • S$${totalSgd.toLocaleString('en-SG', { minimumFractionDigits: 2 })}`}</span>
+                    <ExternalLink className="w-4 h-4 ml-1" />
                   </button>
+                  <div className="flex items-center justify-center space-x-2 text-[11px] text-[#3D262A]/80 font-bold">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <span>Exact amount pre-filled · Instant bank verification via DBS, OCBC, UOB & GrabPay</span>
+                  </div>
                 </div>
               )}
 
