@@ -14,12 +14,8 @@ $stripeConfig = file_exists($localConfigPath) ? require $localConfigPath : [];
 $webhookSecret = $stripeConfig['webhook_secret'] ?? getenv('STRIPE_WEBHOOK_SECRET') ?: '';
 $stripeSecretKey = $stripeConfig['secret_key'] ?? getenv('STRIPE_SECRET_KEY') ?: '';
 
-$logFile = __DIR__ . '/../webhook_log.txt';
-
 function appendWebhookLog(string $message) {
-    global $logFile;
-    $timestamp = date('Y-m-d H:i:s');
-    @file_put_contents($logFile, "[{$timestamp}] {$message}\n", FILE_APPEND);
+    error_log("[STRIPE WEBHOOK] {$message}");
 }
 
 $payload = file_get_contents('php://input');

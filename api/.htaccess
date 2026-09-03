@@ -1,0 +1,6 @@
+# Block direct access to log files and sensitive formats
+<FilesMatch "\.(txt|log|sql|jsonl|md|env|local|bak|orig|swp)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+Options -Indexes
