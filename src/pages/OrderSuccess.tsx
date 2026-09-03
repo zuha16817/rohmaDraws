@@ -119,7 +119,7 @@ export const OrderSuccess: React.FC<OrderSuccessProps> = ({ orderInfo, onReturnH
                   const isDataUrl = imgUrl.startsWith('data:image/');
                   const downloadHref = isDataUrl
                     ? imgUrl
-                    : `/api/download.php?file=${encodeURIComponent(title)}&url=${encodeURIComponent(imgUrl)}`;
+                    : `/api/download.php?order=${encodeURIComponent(orderInfo?.order_number || '')}&file=${encodeURIComponent(title)}&url=${encodeURIComponent(imgUrl)}`;
 
                   return (
                     <div key={idx} className="flex flex-col sm:flex-row items-center justify-between bg-chalk p-4 rounded-xl border-2 border-amaranth/30 shadow-xs gap-3">
