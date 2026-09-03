@@ -14,6 +14,7 @@ dist-ssr/
 .env.*.local
 api/config/database.local.php
 api/config/stripe.local.php
+api/config/admin.local.php
 api/config/*.local.php
 api/config/credentials.php
 

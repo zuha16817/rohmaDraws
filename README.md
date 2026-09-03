@@ -50,10 +50,8 @@ Copy the `.env.example` file to `.env.local`:
 cp .env.example .env.local
 ```
 Fill in your configuration:
-- `VITE_STRIPE_PUBLISHABLE_KEY`
-- `VITE_ADMIN_PASSWORD`
-- `STRIPE_SECRET_KEY`
-- `STRIPE_WEBHOOK_SECRET`
+- `VITE_STRIPE_PUBLISHABLE_KEY` — safe to expose to the browser (Stripe's publishable key is public by design)
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `ADMIN_PASSWORD` — server-only secrets, read via `getenv()` in PHP. Set these in your hosting environment, never in a client-side `.env` used by the Vite build.
 
 For database configuration, create `api/config/database.local.php`:
 ```php

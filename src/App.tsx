@@ -12,7 +12,7 @@ import { Checkout } from './pages/Checkout';
 import { OrderSuccess } from './pages/OrderSuccess';
 import { Admin } from './pages/Admin';
 import { Product } from './types';
-import { fetchProducts, createProduct, updateProduct, deleteProduct, updateHomepageCarousel, fetchCommissionRequests, updateCommissionStatus, deleteCommissionRequest, fetchOrders, updateOrderStatus, deleteOrder, submitOrder, fetchStudioSettings, updateStudioSettings } from './services/api';
+import { fetchProducts, createProduct, updateProduct, deleteProduct, updateHomepageCarousel, fetchCommissionRequests, updateCommissionStatus, deleteCommissionRequest, fetchOrders, updateOrderStatus, deleteOrder, submitOrder, fetchStudioSettings, updateStudioSettings, adminLogin, setAdminToken, verifyStripeSession } from './services/api';
 import { INITIAL_PRODUCTS } from './data/mockData';
 
 const LOCAL_STORAGE_KEY = 'rohma_draws_published_products';
@@ -36,23 +36,27 @@ export const AppContent: React.FC = () => {
   }, []);
 
   const handleAdminLogin = () => {
-    const validPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'admin_secret_pass';
-    if (adminPassword === validPassword) {
-      setAdminAuthenticated(true);
-      setIsAdminView(true);
-      setShowAdminLogin(false);
-      setAdminPassword('');
-      setAdminPasswordError(false);
-      window.history.replaceState(null, '', '/');
-    } else {
-      setAdminPasswordError(true);
-      setAdminPassword('');
-    }
+    adminLogin(adminPassword).then((result) => {
+      if (result.status === 'success') {
+        setAdminAuthenticated(true);
+        setIsAdminView(true);
+        setShowAdminLogin(false);
+        setAdminPassword('');
+        setAdminPasswordError(false);
+        window.history.replaceState(null, '', '/');
+        loadCommissions();
+        loadOrders();
+      } else {
+        setAdminPasswordError(true);
+        setAdminPassword('');
+      }
+    });
   };
 
   const handleAdminLogout = () => {
     setIsAdminView(false);
     setAdminAuthenticated(false);
+    setAdminToken(null);
   };
   
   // Initialize products from LocalStorage for instant browser persistence across reloads
@@ -156,22 +160,16 @@ export const AppContent: React.FC = () => {
           total_amount: pendingOrder.items ? pendingOrder.items.reduce((s: number, i: any) => s + ((i.price || 0) * (i.quantity || 1)), 0) + (pendingOrder.shipping_cost || 0) : 0,
           shipping_cost: pendingOrder.shipping_cost || 0,
           items: pendingOrder.items || items
-        }).then(() => loadOrders());
+        });
       }
 
-      // Query Stripe API directly if sessionId is present to fetch exact customer email & details
+      // Confirm the session and recover exact customer details via the PHP backend,
+      // which holds the Stripe secret key server-side — it is never sent to the browser.
       if (sessionId && sessionId.startsWith('cs_')) {
-        const LIVE_SECRET_KEY = import.meta.env.VITE_STRIPE_SECRET_KEY || '';
-        fetch(`https://api.stripe.com/v1/checkout/sessions/${sessionId}?expand[]=line_items`, {
-          headers: {
-            'Authorization': `Bearer ${LIVE_SECRET_KEY}`
-          }
-        })
-        .then(res => res.json())
-        .then(sessionData => {
-          if (sessionData && sessionData.customer_details) {
-            const email = sessionData.customer_details.email || sessionData.customer_email;
-            const name = sessionData.customer_details.name;
+        verifyStripeSession(sessionId).then((session) => {
+          if (session && session.customer_details) {
+            const email = session.customer_details.email || session.customer_email;
+            const name = session.customer_details.name;
             if (email) {
               setCompletedOrderInfo((prev: any) => ({
                 ...prev,
@@ -180,8 +178,7 @@ export const AppContent: React.FC = () => {
               }));
             }
           }
-        })
-        .catch(err => console.error('Error fetching Stripe session:', err));
+        });
       }
     }
   }, []);
@@ -274,8 +271,8 @@ export const AppContent: React.FC = () => {
   useEffect(() => {
     loadProducts();
     loadStudioSettings();
-    loadCommissions();
-    loadOrders();
+    // Orders and commission requests contain customer PII and are only loaded
+    // once an admin session is established (see handleAdminLogin).
   }, []);
 
   const handleToggleCommissionsOpen = (val: boolean) => {

@@ -3,6 +3,51 @@ import { INITIAL_PRODUCTS } from '../data/mockData';
 
 const API_BASE = '/api';
 
+// Admin session token, held in memory only (never persisted to localStorage) —
+// obtained from POST /api/admin/login after the server verifies the password.
+let adminToken: string | null = null;
+
+export const setAdminToken = (token: string | null) => {
+  adminToken = token;
+};
+
+const authHeaders = (): Record<string, string> =>
+  adminToken ? { Authorization: `Bearer ${adminToken}` } : {};
+
+export const adminLogin = async (password: string): Promise<{ status: string; token?: string; message?: string }> => {
+  try {
+    const res = await fetch(`${API_BASE}/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    if (data.status === 'success' && data.token) {
+      setAdminToken(data.token);
+    }
+    return data;
+  } catch {
+    return { status: 'error', message: 'Unable to reach the server.' };
+  }
+};
+
+// Looks up a completed Stripe Checkout session server-side (the secret key never
+// leaves the PHP backend) to confirm payment and recover customer details.
+export const verifyStripeSession = async (sessionId: string): Promise<any | null> => {
+  try {
+    const res = await fetch(`${API_BASE}/payments/verify-session?session_id=${encodeURIComponent(sessionId)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.status === 'success') {
+        return data.session;
+      }
+    }
+  } catch {
+    // Fallback
+  }
+  return null;
+};
+
 export const fetchProducts = async (typeFilter?: string): Promise<Product[]> => {
   try {
     const url = typeFilter ? `${API_BASE}/products?type=${typeFilter}` : `${API_BASE}/products`;
@@ -42,7 +87,7 @@ export const createProduct = async (data: Partial<Product>) => {
   try {
     const res = await fetch(`${API_BASE}/products`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(data)
     });
     if (res.ok) {
@@ -58,7 +103,7 @@ export const updateProduct = async (id: number, data: Partial<Product>) => {
   try {
     const res = await fetch(`${API_BASE}/products?action=update&id=${id}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(data)
     });
     if (res.ok) {
@@ -74,7 +119,7 @@ export const updateHomepageCarousel = async (featuredIds: number[]) => {
   try {
     const res = await fetch(`${API_BASE}/products?action=update_carousel`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ featured_ids: featuredIds })
     });
     if (res.ok) {
@@ -89,7 +134,8 @@ export const updateHomepageCarousel = async (featuredIds: number[]) => {
 export const deleteProduct = async (id: number) => {
   try {
     const res = await fetch(`${API_BASE}/products?id=${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: authHeaders()
     });
     if (res.ok) {
       return await res.json();
@@ -103,7 +149,7 @@ export const deleteProduct = async (id: number) => {
 // COMMISSION REQUESTS LIVE DATABASE API METHODS
 export const fetchCommissionRequests = async (): Promise<any[]> => {
   try {
-    const res = await fetch(`${API_BASE}/commissions`);
+    const res = await fetch(`${API_BASE}/commissions`, { headers: authHeaders() });
     if (res.ok) {
       const data = await res.json();
       if (data.status === 'success' && Array.isArray(data.data)) {
@@ -120,7 +166,7 @@ export const updateCommissionStatus = async (id: number, status: string) => {
   try {
     const res = await fetch(`${API_BASE}/commissions?id=${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ status })
     });
     if (res.ok) {
@@ -135,7 +181,8 @@ export const updateCommissionStatus = async (id: number, status: string) => {
 export const deleteCommissionRequest = async (id: number) => {
   try {
     const res = await fetch(`${API_BASE}/commissions?id=${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: authHeaders()
     });
     if (res.ok) {
       return await res.json();
@@ -173,7 +220,7 @@ export const updateStudioSettings = async (
   try {
     const res = await fetch(`${API_BASE}/settings`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(settings)
     });
     if (res.ok) {
@@ -199,7 +246,7 @@ export const calculateShippingCost = async (): Promise<ShippingCalculationResult
 // LIVE ORDERS DATABASE API METHODS
 export const fetchOrders = async (): Promise<any[]> => {
   try {
-    const res = await fetch(`${API_BASE}/orders`);
+    const res = await fetch(`${API_BASE}/orders`, { headers: authHeaders() });
     if (res.ok) {
       const data = await res.json();
       if (data.status === 'success' && Array.isArray(data.data)) {
@@ -216,7 +263,7 @@ export const updateOrderStatus = async (id: number, status: string) => {
   try {
     const res = await fetch(`${API_BASE}/orders?id=${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ status })
     });
     if (res.ok) {
@@ -231,7 +278,8 @@ export const updateOrderStatus = async (id: number, status: string) => {
 export const deleteOrder = async (id: number) => {
   try {
     const res = await fetch(`${API_BASE}/orders?id=${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: authHeaders()
     });
     if (res.ok) {
       return await res.json();

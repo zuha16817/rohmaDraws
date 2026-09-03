@@ -17,6 +17,8 @@ require_once __DIR__ . '/controllers/CommissionController.php';
 require_once __DIR__ . '/controllers/ShippingController.php';
 require_once __DIR__ . '/controllers/PaymentController.php';
 require_once __DIR__ . '/controllers/SettingsController.php';
+require_once __DIR__ . '/controllers/AuthController.php';
+require_once __DIR__ . '/services/AuthService.php';
 
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
@@ -26,12 +28,15 @@ $rawInput = file_get_contents('php://input');
 $input = !empty($rawInput) ? json_decode($rawInput, true) : $_POST;
 
 try {
-    if (strpos($uri, '/api/products') !== false) {
+    if (strpos($uri, '/api/admin/login') !== false && $method === 'POST') {
+        $controller = new AuthController();
+        echo json_encode($controller->login($input ?? []));
+    } elseif (strpos($uri, '/api/products') !== false) {
         $controller = new ProductController();
         if ($method === 'GET') {
             $type = $_GET['type'] ?? null;
             $id = isset($_GET['id']) ? intval($_GET['id']) : null;
-            
+
             if ($id) {
                 $data = $controller->getProductById($id);
                 echo json_encode($data ? ['status' => 'success', 'data' => $data] : ['status' => 'error', 'message' => 'Artwork not found']);
@@ -40,6 +45,7 @@ try {
                 echo json_encode(['status' => 'success', 'data' => $data]);
             }
         } elseif ($method === 'POST') {
+            AuthService::requireAdmin();
             $action = $_GET['action'] ?? ($input['action'] ?? null);
             if ($action === 'update_carousel') {
                 $featuredIds = $input['featured_ids'] ?? [];
@@ -64,6 +70,7 @@ try {
                 }
             }
         } elseif ($method === 'PUT') {
+            AuthService::requireAdmin();
             $id = isset($_GET['id']) ? intval($_GET['id']) : ($input['id'] ?? null);
             if ($id && $controller->updateProduct($id, $input ?? [])) {
                 echo json_encode(['status' => 'success', 'message' => 'Artwork updated in database.']);
@@ -71,6 +78,7 @@ try {
                 echo json_encode(['status' => 'error', 'message' => 'Failed to update artwork in database.']);
             }
         } elseif ($method === 'DELETE') {
+            AuthService::requireAdmin();
             $id = isset($_GET['id']) ? intval($_GET['id']) : ($input['id'] ?? null);
             if ($id && $controller->deleteProduct($id)) {
                 echo json_encode(['status' => 'success', 'message' => 'Artwork removed from database.']);
@@ -81,11 +89,13 @@ try {
     } elseif (strpos($uri, '/api/commissions') !== false) {
         $controller = new CommissionController();
         if ($method === 'GET') {
+            AuthService::requireAdmin();
             $requests = $controller->getCommissionRequests();
             echo json_encode(['status' => 'success', 'data' => $requests]);
         } elseif ($method === 'POST') {
             echo json_encode($controller->handleCommissionRequest($input ?? [], $_FILES ?? []));
         } elseif ($method === 'PUT') {
+            AuthService::requireAdmin();
             $id = isset($_GET['id']) ? intval($_GET['id']) : ($input['id'] ?? null);
             $status = $input['status'] ?? 'reviewed';
             if ($id && $controller->updateCommissionStatus($id, $status)) {
@@ -94,6 +104,7 @@ try {
                 echo json_encode(['status' => 'error', 'message' => 'Failed to update commission status.']);
             }
         } elseif ($method === 'DELETE') {
+            AuthService::requireAdmin();
             $id = isset($_GET['id']) ? intval($_GET['id']) : ($input['id'] ?? null);
             if ($id && $controller->deleteCommissionRequest($id)) {
                 echo json_encode(['status' => 'success', 'message' => 'Commission inquiry removed.']);
@@ -106,6 +117,7 @@ try {
         if ($method === 'GET') {
             echo json_encode(['status' => 'success', 'data' => $controller->getSettings()]);
         } elseif ($method === 'POST' || $method === 'PUT') {
+            AuthService::requireAdmin();
             echo json_encode($controller->updateSettings($input ?? []));
         }
     } elseif (strpos($uri, '/api/shipping/rates') !== false) {
@@ -113,6 +125,7 @@ try {
         if ($method === 'GET') {
             echo json_encode(['status' => 'success', 'data' => $controller->getRates()]);
         } elseif ($method === 'POST' || $method === 'PUT') {
+            AuthService::requireAdmin();
             $rates = $input['rates'] ?? ($input ?? []);
             echo json_encode($controller->updateRates($rates));
         }
@@ -122,11 +135,13 @@ try {
     } elseif (strpos($uri, '/api/orders') !== false) {
         $controller = new OrderController();
         if ($method === 'GET') {
+            AuthService::requireAdmin();
             $orders = $controller->getOrders();
             echo json_encode(['status' => 'success', 'data' => $orders]);
         } elseif ($method === 'POST') {
             echo json_encode($controller->createOrder($input ?? []));
         } elseif ($method === 'PUT') {
+            AuthService::requireAdmin();
             $id = isset($_GET['id']) ? intval($_GET['id']) : ($input['id'] ?? null);
             $status = $input['status'] ?? 'paid';
             if ($id && $controller->updateOrderStatus($id, $status)) {
@@ -135,6 +150,7 @@ try {
                 echo json_encode(['status' => 'error', 'message' => 'Failed to update order status.']);
             }
         } elseif ($method === 'DELETE') {
+            AuthService::requireAdmin();
             $id = isset($_GET['id']) ? intval($_GET['id']) : ($input['id'] ?? null);
             if ($id && $controller->deleteOrder($id)) {
                 echo json_encode(['status' => 'success', 'message' => 'Order deleted.']);
