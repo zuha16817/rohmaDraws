@@ -44,18 +44,46 @@ class CommissionController {
             return ['status' => 'error', 'message' => 'Please fill in Name, Email, and Project Description.'];
         }
 
-        // Handle uploaded reference image file
+        // Handle uploaded reference image file with strict validation
         if (!empty($files['reference_image']) && $files['reference_image']['error'] === UPLOAD_ERR_OK) {
+            $file = $files['reference_image'];
+            $maxFileSize = 10 * 1024 * 1024; // 10MB limit
+
+            if ($file['size'] > $maxFileSize) {
+                return ['status' => 'error', 'message' => 'Uploaded reference image exceeds the 10MB limit.'];
+            }
+
+            $allowedMimes = [
+                'image/jpeg' => 'jpg',
+                'image/png'  => 'png',
+                'image/webp' => 'webp',
+                'image/gif'  => 'gif'
+            ];
+
+            // Verify MIME type using Fileinfo
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $file['tmp_name']);
+            finfo_close($finfo);
+
+            // Double check image validity using getimagesize
+            $imageInfo = @getimagesize($file['tmp_name']);
+
+            if (!isset($allowedMimes[$mimeType]) || $imageInfo === false) {
+                return ['status' => 'error', 'message' => 'Invalid file format. Only JPEG, PNG, WEBP, and GIF images are allowed.'];
+            }
+
+            $safeExt = $allowedMimes[$mimeType];
             $uploadDir = __DIR__ . '/../uploads/';
             if (!is_dir($uploadDir)) {
                 @mkdir($uploadDir, 0755, true);
             }
 
-            $fileName = 'comm_' . time() . '_' . preg_replace('/[^a-zA-Z0-9_\.-]/', '', basename($files['reference_image']['name']));
-            $targetPath = $uploadDir . $fileName;
+            // Generate a completely randomized safe filename with whitelisted extension only
+            $safeFileName = 'comm_' . bin2hex(random_bytes(12)) . '_' . time() . '.' . $safeExt;
+            $targetPath = $uploadDir . $safeFileName;
 
-            if (move_uploaded_file($files['reference_image']['tmp_name'], $targetPath)) {
-                $referenceImageUrl = '/api/uploads/' . $fileName;
+            if (move_uploaded_file($file['tmp_name'], $targetPath)) {
+                $referenceImageUrl = '/api/uploads/' . $safeFileName;
             }
         } elseif (!empty($input['reference_image_url'])) {
             $referenceImageUrl = filter_var($input['reference_image_url'], FILTER_SANITIZE_URL);
