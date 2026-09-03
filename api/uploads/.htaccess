@@ -1,0 +1,6 @@
+# Block all script execution
+<FilesMatch "\.(php|phtml|phar|cgi|pl|py|sh|asp|js)$">
+Order Deny,Allow
+Deny from all
+</FilesMatch>
+Options -ExecCGI -Indexes
