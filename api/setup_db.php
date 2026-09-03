@@ -1,24 +1,30 @@
 <?php
-// Database Table Auto-Initializer & Migration for Rohma Draws Studio
+// Database Table Auto-Initializer & Migration (CLI / Admin Only)
 header("Content-Type: application/json; charset=UTF-8");
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/services/AuthService.php';
+
+// Disallow unauthenticated web requests
+if (php_sapi_name() !== 'cli') {
+    AuthService::requireAdmin();
+}
 
 try {
     $database = new Database();
     $db = $database->getConnection();
 
     if (!$db) {
-        throw new Exception("Unable to connect to MySQL database.");
+        throw new Exception("Unable to connect to database.");
     }
 
-    $sql = file_get_contents(__DIR__ . '/schema.sql');
-    if (!$sql) {
-        throw new Exception("schema.sql file not found.");
+    $sqlFile = __DIR__ . '/schema.sql';
+    if (file_exists($sqlFile)) {
+        $sql = file_get_contents($sqlFile);
+        if ($sql) {
+            $db->exec($sql);
+        }
     }
-
-    // Execute schema statements
-    $db->exec($sql);
 
     // Alter columns to LONGTEXT to prevent image_url truncation
     @$db->exec("ALTER TABLE products MODIFY image_url LONGTEXT NOT NULL");
@@ -27,22 +33,18 @@ try {
     @$db->exec("ALTER TABLE products ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT FALSE");
     @$db->exec("ALTER TABLE products ADD COLUMN IF NOT EXISTS carousel_order INT DEFAULT 0");
 
-    // Fix commission_requests table: add missing reference_url column if not exists
+    // Fix commission_requests table
     @$db->exec("ALTER TABLE commission_requests ADD COLUMN IF NOT EXISTS reference_url VARCHAR(500) DEFAULT NULL");
-    // Fix commission_requests status ENUM to include 'pending'
     @$db->exec("ALTER TABLE commission_requests MODIFY status ENUM('pending','new','reviewed','accepted','declined') DEFAULT 'pending'");
-
-    // Clear broken/truncated base64 records if any exist
-    @$db->exec("DELETE FROM products WHERE image_url LIKE 'data:image%' AND LENGTH(image_url) < 1000");
 
     echo json_encode([
         "status" => "success",
-        "message" => "Database tables successfully created & migrated to LONGTEXT in rohmnkmq_rohmaadraws!"
+        "message" => "Database tables and schema migrations up to date."
     ], JSON_PRETTY_PRINT);
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode([
         "status" => "error",
-        "message" => $e->getMessage()
+        "message" => "Database migration failed."
     ], JSON_PRETTY_PRINT);
 }
