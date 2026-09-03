@@ -7,9 +7,12 @@ header("Content-Type: application/json; charset=UTF-8");
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../services/MailerService.php';
 
-// Configuration: Read Webhook Secret & Stripe Keys from Server Environment
-$webhookSecret = getenv('STRIPE_WEBHOOK_SECRET') ?: '';
-$stripeSecretKey = getenv('STRIPE_SECRET_KEY') ?: '';
+// Configuration: Read Webhook Secret & Stripe Keys from Server Config or Environment
+$localConfigPath = __DIR__ . '/../config/stripe.local.php';
+$stripeConfig = file_exists($localConfigPath) ? require $localConfigPath : [];
+
+$webhookSecret = $stripeConfig['webhook_secret'] ?? getenv('STRIPE_WEBHOOK_SECRET') ?: '';
+$stripeSecretKey = $stripeConfig['secret_key'] ?? getenv('STRIPE_SECRET_KEY') ?: '';
 
 $logFile = __DIR__ . '/../webhook_log.txt';
 
@@ -23,18 +26,19 @@ $payload = file_get_contents('php://input');
 $sigHeader = $_SERVER['HTTP_STRIPE_SIGNATURE'] ?? '';
 
 if (empty($payload)) {
-    appendWebhookLog("Empty payload received via GET/POST.");
+    appendWebhookLog("Empty payload received.");
     http_response_code(400);
     echo json_encode(['status' => 'error', 'message' => 'Empty payload']);
     exit();
 }
 
 /**
- * Native Stripe Signature Verification Function (No external dependencies required)
+ * Strict Stripe Signature Verification Function
+ * Cryptographically verifies HMAC SHA-256 signature and timestamp tolerance.
  */
-function verifyStripeSignature(string $payload, string $sigHeader, string $secret, int $tolerance = 600): bool {
-    if (empty($sigHeader) || empty($secret) || $secret === 'whsec_placeholder_secret_key_here') {
-        return true; 
+function verifyStripeSignature(string $payload, string $sigHeader, string $secret, int $tolerance = 300): bool {
+    if (empty($sigHeader) || empty($secret)) {
+        return false;
     }
 
     $timestamp = null;
@@ -56,6 +60,11 @@ function verifyStripeSignature(string $payload, string $sigHeader, string $secre
         return false;
     }
 
+    // Reject requests with expired timestamp (replay attack defense)
+    if (abs(time() - $timestamp) > $tolerance) {
+        return false;
+    }
+
     // Compute expected HMAC SHA-256 signature
     $signedPayload = $timestamp . '.' . $payload;
     $expectedSignature = hash_hmac('sha256', $signedPayload, $secret);
@@ -69,11 +78,11 @@ function verifyStripeSignature(string $payload, string $sigHeader, string $secre
     return false;
 }
 
-// 1. Verify Webhook Signature
+// 1. Enforce Webhook Signature Verification
 if (!verifyStripeSignature($payload, $sigHeader, $webhookSecret)) {
-    appendWebhookLog("Signature Verification Failed for header: {$sigHeader}");
+    appendWebhookLog("Webhook rejected: Signature verification failed or missing signature.");
     http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Invalid Stripe Webhook Signature']);
+    echo json_encode(['status' => 'error', 'message' => 'Invalid or missing Stripe Webhook Signature']);
     exit();
 }
 
