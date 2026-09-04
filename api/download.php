@@ -94,14 +94,30 @@ if (!$isAuthorized) {
 // Resolve file path safely
 $secureDir = realpath(__DIR__ . '/secure_downloads/');
 $imagesDir = realpath(__DIR__ . '/../images/');
-$uploadsDir = realpath(__DIR__ . '/uploads/');
+$apiUploadsDir = realpath(__DIR__ . '/uploads/');
+$rootUploadsDir = realpath(__DIR__ . '/../uploads/');
 
-$dirsToCheck = array_filter([$secureDir, $imagesDir, $uploadsDir]);
+$dirsToCheck = array_values(array_filter([$secureDir, $apiUploadsDir, $rootUploadsDir, $imagesDir]));
 $filePath = null;
 $downloadName = null;
 
-// Resolve by exact title or filename
-if (!empty($requestedFile)) {
+// 1. Resolve via image URL basename if provided
+if (!$filePath && !empty($imageUrl)) {
+    $urlBasename = basename(parse_url($imageUrl, PHP_URL_PATH));
+    if (!empty($urlBasename)) {
+        foreach ($dirsToCheck as $dir) {
+            $candidate = $dir . DIRECTORY_SEPARATOR . $urlBasename;
+            if (file_exists($candidate)) {
+                $filePath = $candidate;
+                $downloadName = (!empty($requestedFile) ? $requestedFile : pathinfo($urlBasename, PATHINFO_FILENAME)) . '.' . (pathinfo($urlBasename, PATHINFO_EXTENSION) ?: 'jpg');
+                break;
+            }
+        }
+    }
+}
+
+// 2. Resolve by exact title or filename
+if (!$filePath && !empty($requestedFile)) {
     $cleanName = basename($requestedFile);
     $exts = ['', '.jpg', '.jpeg', '.png', '.pdf', '.webp'];
 
@@ -118,7 +134,7 @@ if (!empty($requestedFile)) {
     }
 }
 
-// Case-insensitive filename matching
+// 3. Case-insensitive filename matching
 if (!$filePath && !empty($requestedFile)) {
     $reqTitle = strtolower(trim(pathinfo($requestedFile, PATHINFO_FILENAME)));
 
@@ -138,18 +154,42 @@ if (!$filePath && !empty($requestedFile)) {
     }
 }
 
-// Resolve via image URL basename
-if (!$filePath && !empty($imageUrl)) {
-    $urlBasename = basename(parse_url($imageUrl, PHP_URL_PATH));
-    if (!empty($urlBasename)) {
-        foreach ($dirsToCheck as $dir) {
-            $candidate = $dir . DIRECTORY_SEPARATOR . $urlBasename;
-            if (file_exists($candidate)) {
-                $filePath = $candidate;
-                $downloadName = $urlBasename;
-                break;
+// 4. Query MySQL products table for the image_url or digital_file_url
+if (!$filePath) {
+    try {
+        $database = new Database();
+        $db = $database->getConnection();
+        if ($db) {
+            $stmt = null;
+            if ($productId) {
+                $stmt = $db->prepare("SELECT title, image_url, digital_file_url FROM products WHERE id = :id LIMIT 1");
+                $stmt->execute([':id' => $productId]);
+            } elseif (!empty($requestedFile)) {
+                $stmt = $db->prepare("SELECT title, image_url, digital_file_url FROM products WHERE title = :title OR title LIKE :title_like LIMIT 1");
+                $stmt->execute([':title' => $requestedFile, ':title_like' => '%' . $requestedFile . '%']);
+            }
+
+            if ($stmt) {
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($row) {
+                    $targetUrls = array_filter([$row['digital_file_url'] ?? '', $row['image_url'] ?? '']);
+                    foreach ($targetUrls as $tUrl) {
+                        $dbBasename = basename(parse_url($tUrl, PHP_URL_PATH));
+                        if (!empty($dbBasename)) {
+                            foreach ($dirsToCheck as $dir) {
+                                if (file_exists($dir . DIRECTORY_SEPARATOR . $dbBasename)) {
+                                    $filePath = $dir . DIRECTORY_SEPARATOR . $dbBasename;
+                                    $downloadName = (!empty($requestedFile) ? $requestedFile : $row['title']) . '.' . (pathinfo($dbBasename, PATHINFO_EXTENSION) ?: 'jpg');
+                                    break 2;
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
+    } catch (Throwable $e) {
+        error_log("Product lookup error in download.php: " . $e->getMessage());
     }
 }
 
